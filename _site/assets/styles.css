@@ -73,6 +73,15 @@ h1 { margin: 0; font-size: 58px; }
 .fact:last-child { border: 0; }
 .fact strong { display: block; margin-bottom: 4px; }
 .fact span { color: var(--muted); font-size: 14px; }
+.promo-band { padding: 26px 0; border-block: 1px solid #303a34; background: #1c2420; }
+.promo-banner { min-height: 92px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 20px 24px; border: 1px solid #526158; border-radius: 6px; color: #fff; text-decoration: none; }
+.promo-banner:hover { border-color: #8aa396; background: #232e28; }
+.promo-banner:focus-visible { outline: 3px solid #f0bd55; outline-offset: 3px; }
+.promo-label { align-self: start; padding: 2px 7px; border: 1px solid #8a9790; color: #d7dfda; font-size: 11px; line-height: 1.5; }
+.promo-copy { display: grid; gap: 2px; }
+.promo-copy strong { color: #fff; font-size: 21px; }
+.promo-copy span { color: #c7d1cb; font-size: 14px; }
+.promo-action { display: inline-flex; align-items: center; gap: 7px; color: #f0bd55; font-weight: 750; white-space: nowrap; }
 .tool-header { padding: 48px 0 28px; background: var(--paper); border-bottom: 1px solid var(--line); }
 .breadcrumbs { margin-bottom: 16px; color: var(--muted); font-size: 13px; }
 .breadcrumbs a { color: inherit; }
@@ -169,6 +178,8 @@ caption { padding: 10px 12px; background: #f7faf8; border-bottom: 1px solid var(
   .facts { grid-template-columns: 1fr; }
   .fact { border-right: 0; border-bottom: 1px solid var(--line); }
   .workspace-grid { grid-template-columns: 1fr; }
+  .promo-banner { grid-template-columns: auto minmax(0, 1fr); }
+  .promo-action { grid-column: 2; justify-self: start; }
   .side-note { position: static; }
   .field-grid { grid-template-columns: 1fr; }
   .column-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -184,4 +195,8 @@ caption { padding: 10px 12px; background: #f7faf8; border-bottom: 1px solid var(
   .step { padding: 20px 16px; }
   .column-options { grid-template-columns: 1fr; }
   .tool-link { grid-template-columns: 34px minmax(0, 1fr) 20px; gap: 10px; }
+  .promo-band { padding-block: 18px; }
+  .promo-banner { min-height: 0; grid-template-columns: 1fr; gap: 10px; padding: 18px; }
+  .promo-label { justify-self: start; }
+  .promo-action { grid-column: 1; }
 }

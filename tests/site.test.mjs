@@ -32,6 +32,25 @@ test("privacy policy reflects the active analytics configuration", () => {
   assert.doesNotMatch(privacy, /当前版本没有配置访问统计/);
 });
 
+test("promotion banners are disclosed, limited and safely linked", () => {
+  const promotedPages = ["index.html", "csv-excel-converter/index.html", "excel-deduplicate/index.html", "excel-merge/index.html", "excel-split-by-column/index.html", "excel-compare/index.html"];
+  for (const relative of promotedPages) {
+    const html = readFileSync(path.join(root, relative), "utf8");
+    assert.equal((html.match(/href="https:\/\/huyuejsq\.co\/"/g) || []).length, 1, relative);
+    assert.match(html, /rel="sponsored noopener noreferrer"/, relative);
+    assert.match(html, /class="promo-label">推广</, relative);
+    assert.doesNotMatch(html, /突破|解锁|保证提速|绝对安全/, relative);
+  }
+  for (const relative of ["about/index.html", "privacy/index.html", "terms/index.html", "licenses/index.html", "404.html"]) {
+    const html = readFileSync(path.join(root, relative), "utf8");
+    assert.doesNotMatch(html, /href="https:\/\/huyuejsq\.co\/"/, relative);
+  }
+  const privacy = readFileSync(path.join(root, "privacy/index.html"), "utf8");
+  const terms = readFileSync(path.join(root, "terms/index.html"), "utf8");
+  assert.match(privacy, /明确标注“推广”的虎跃加速横幅/);
+  assert.match(terms, /不对第三方产品的速度、安全性、可用性或适用性作保证/);
+});
+
 test("SEO output excludes obsolete FAQ markup and keeps the 404 out of the index", () => {
   for (const relative of pages.filter((name) => name.includes("excel-") || name.includes("csv-excel"))) {
     const html = readFileSync(path.join(root, relative), "utf8");
