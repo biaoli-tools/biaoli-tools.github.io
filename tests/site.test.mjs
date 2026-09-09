@@ -12,6 +12,8 @@ test("all generated pages have titles, descriptions, one H1 and valid local asse
     assert.match(html, /<title>[^<]+<\/title>/, relative);
     assert.match(html, /<meta name="description" content="[^"]+">/, relative);
     assert.equal((html.match(/<h1\b/g) || []).length, 1, relative);
+    assert.equal((html.match(/G-3ERPJ3X77R/g) || []).length, 2, `${relative}: GA4 tag missing or duplicated`);
+    assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-3ERPJ3X77R/, relative);
     assert.doesNotMatch(html, /<span><h[1-6]>/, relative);
     for (const match of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) assert.doesNotThrow(() => JSON.parse(match[1]), relative);
     for (const match of html.matchAll(/(?:href|src)="(\/[^"]+)"/g)) {
@@ -21,6 +23,13 @@ test("all generated pages have titles, descriptions, one H1 and valid local asse
       assert.ok(existsSync(target), `${relative}: missing ${url}`);
     }
   }
+});
+
+test("privacy policy reflects the active analytics configuration", () => {
+  const privacy = readFileSync(path.join(root, "privacy/index.html"), "utf8");
+  assert.match(privacy, /使用 Google Analytics 4/);
+  assert.match(privacy, /不会主动把文件名、列名、单元格内容或导出结果发送给统计服务/);
+  assert.doesNotMatch(privacy, /当前版本没有配置访问统计/);
 });
 
 test("SEO output excludes obsolete FAQ markup and keeps the 404 out of the index", () => {

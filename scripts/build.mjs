@@ -4,6 +4,7 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 const out = path.join(root, "_site");
 const site = "https://biaoli-tools.github.io";
+const analyticsId = "G-3ERPJ3X77R";
 const buildDate = new Date().toISOString().slice(0, 10);
 const chineseBuildDate = `${buildDate.slice(0, 4)} 年 ${Number(buildDate.slice(5, 7))} 月 ${Number(buildDate.slice(8, 10))} 日`;
 
@@ -19,6 +20,17 @@ function schema(data) {
   return JSON.stringify(data).replaceAll("<", "\\u003c");
 }
 
+function analyticsTag() {
+  return `<!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=${analyticsId}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${analyticsId}');
+  </script>`;
+}
+
 function layout({ title, description, pathName = "/", body = "", toolId = "", schemaData = null, indexable = true, canonicalize = true }) {
   const canonical = `${site}${pathName}`;
   return `<!doctype html>
@@ -26,6 +38,7 @@ function layout({ title, description, pathName = "/", body = "", toolId = "", sc
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  ${analyticsTag()}
   <title>${title}</title>
   <meta name="description" content="${description}">
   ${canonicalize ? `<link rel="canonical" href="${canonical}">` : ""}
@@ -207,7 +220,7 @@ function toolPage(tool) {
 function policyPage(kind) {
   const pages = {
     about: { title: "关于与反馈", description: "了解表理工具的维护原则、测试方式、功能边界和问题反馈渠道。", html: `<p>规则与功能最近核对：2026 年 9 月 9 日</p><h2>为什么做这个站</h2><p>表理工具专门处理办公中反复出现的小麻烦：换格式、删重复、合并月报、按部门拆表，以及比较两个版本。首版没有做成完整的在线表格编辑器，因为这些任务更适合用边界清楚的小工具解决。</p><h2>怎么检查功能</h2><p>每个工具都配有虚构样例。构建过程会检查页面链接、标题与描述，数据测试覆盖 CSV 引号和换行、去重规则、差异分类、文件名清理、CSV 安全导出，以及 XLSX 文件结构。涉及日期、公式和大文件时，页面会直接说明限制，不用“完全兼容”这类说不准的话。</p><h2>如何反馈问题</h2><p>发现结果不符合预期时，请记录浏览器版本、文件格式和复现步骤，不要提交含客户、财务或身份信息的原文件。可以前往 <a href="https://github.com/biaoli-tools/biaoli-tools.github.io/issues" rel="noopener noreferrer">GitHub Issues</a> 反馈。</p><h2>更新记录</h2><p><strong>2026-09-09：</strong>补充 XLSX 日期与公式处理、CSV 安全导出、大文件提醒和五个工具的规则示例。</p>` },
-    privacy: { title: "隐私政策", description: "说明表理工具如何在浏览器本地处理文件，以及未来接入统计或广告服务时的隐私边界。", html: `<p>更新日期：2026 年 9 月 9 日</p><h2>文件处理</h2><p>表理工具的表格解析、整理和导出默认在你的浏览器中完成。本站不提供文件上传接口，也不主动保存文件名、表头、单元格内容或导出结果。</p><h2>本地临时数据</h2><p>处理状态只存在于当前页面内存中。刷新或关闭页面后会清空。下载的结果由浏览器保存到你选择的位置。</p><h2>统计与广告</h2><p>当前版本没有配置访问统计或广告脚本。若以后接入，本站会先更新本页，说明服务商、Cookie、收集范围和退出方式；统计事件不得包含文件名、列名或单元格内容。</p><h2>你需要留意的设备环境</h2><p>浏览器扩展、操作系统和下载目录不受本站控制。请勿在公共或不受信任的设备上处理敏感资料，使用后也要检查下载目录中是否留有副本。</p>` },
+    privacy: { title: "隐私政策", description: "说明表理工具如何在浏览器本地处理文件，以及访问统计和未来广告服务的隐私边界。", html: `<p>更新日期：2026 年 9 月 9 日</p><h2>文件处理</h2><p>表理工具的表格解析、整理和导出默认在你的浏览器中完成。本站不提供文件上传接口，也不主动保存文件名、表头、单元格内容或导出结果。</p><h2>本地临时数据</h2><p>处理状态只存在于当前页面内存中。刷新或关闭页面后会清空。下载的结果由浏览器保存到你选择的位置。</p><h2>访问统计</h2><p>本站使用 Google Analytics 4 了解页面访问量、会话、访问来源以及浏览器和设备类别。Google Analytics 可能通过第一方 Cookie 区分用户与会话，并根据 IP 地址生成粗略地区信息。本站不会主动把文件名、列名、单元格内容或导出结果发送给统计服务。你可以通过浏览器设置限制或删除 Cookie；更多处理方式见 <a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google 隐私权政策</a>。</p><h2>广告</h2><p>当前版本没有配置广告脚本。若以后接入，本站会先更新本页，说明服务商、Cookie、收集范围和退出方式。</p><h2>你需要留意的设备环境</h2><p>浏览器扩展、操作系统和下载目录不受本站控制。请勿在公共或不受信任的设备上处理敏感资料，使用后也要检查下载目录中是否留有副本。</p>` },
     terms: { title: "使用条款", description: "表理工具的使用范围、文件兼容限制和责任边界。", html: `<p>更新日期：2026 年 9 月 9 日</p><h2>工具用途</h2><p>本站提供免费的浏览器端表格整理功能。你应确保有权处理所选择的文件，并对下载结果进行必要核对。</p><h2>兼容边界</h2><p>当前版本支持 XLSX、CSV 和 TSV，不处理旧版 XLS、加密或损坏的工作簿。日期会整理为统一格式，公式保存为公式文本；宏、图表、数据透视表、外部链接和复杂样式不会保留。</p><h2>重要数据</h2><p>处理前请保留原文件。财务结算、法律材料或其他高风险用途需要人工复核，不能只依赖自动生成的结果。</p><h2>开源组件</h2><p>本站使用的开源组件及许可见<a href="/licenses/">开源许可页面</a>。</p>` },
     licenses: { title: "开源许可", description: "表理工具内置开源组件的版本、版权和许可说明。", html: `<p>更新日期：2026 年 9 月 9 日</p><h2>JSZip 3.10.1</h2><p>Copyright © 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso。本站按 MIT License 使用，项目内保留完整许可文本。</p><h2>站点自有代码</h2><p>XLSX 基础读写由本站轻量模块实现，不含第三方表格解析库。它会把常见日期整理成可读文本，把公式保留为公式文本；数字格式、样式、宏和图表不在保留范围内。</p><p>组件名称与商标归各自权利人所有。</p>` }
   };
