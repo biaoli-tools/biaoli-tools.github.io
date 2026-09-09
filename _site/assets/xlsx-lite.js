@@ -37,10 +37,11 @@ function isDateFormat(formatId, formatCode = "") {
   return /[ymdhis]/i.test(visible);
 }
 
-export function formatExcelDate(serial, formatCode = "") {
+export function formatExcelDate(serial, formatCode = "", date1904 = false) {
   const number = Number(serial);
   if (!Number.isFinite(number)) return String(serial ?? "");
-  const date = new Date(Math.round((number - 25569) * 86400 * 1000));
+  const unixEpochSerial = date1904 ? 24107 : 25569;
+  const date = new Date(Math.round((number - unixEpochSerial) * 86400 * 1000));
   const iso = date.toISOString();
   const hasDate = /[yd]/i.test(formatCode) || number >= 1;
   const hasTime = /[his]/i.test(formatCode) || number % 1 !== 0;
@@ -63,11 +64,11 @@ function readStyles(documentNode) {
     });
 }
 
-export function formatCellValue({ formula, type, raw, style }, shared = []) {
+export function formatCellValue({ formula, type, raw, style, date1904 = false }, shared = []) {
   if (formula != null) return `=${formula}`;
   if (type === "s") return shared[Number(raw)] ?? "";
   if (type === "b") return raw === "1" ? "TRUE" : "FALSE";
-  if (style?.isDate && raw !== "") return formatExcelDate(raw, style.code);
+  if (style?.isDate && raw !== "") return formatExcelDate(raw, style.code, date1904);
   return raw;
 }
 
@@ -85,12 +86,24 @@ function sheetXml(rows) {
 export async function writeXlsx(sheets) {
   if (!window.JSZip) throw new Error("ZIP 组件未加载，请刷新页面重试。");
   const zip = new JSZip();
-  const overrides = sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
+  const usedNames = new Set();
+  const normalizedSheets = sheets.map((sheet, index) => {
+    const source = String(sheet.name ?? "").replace(/[\\/*?:\[\]]/g, "_").replace(/^'+|'+$/g, "").trim() || `表${index + 1}`;
+    let name = source.slice(0, 31);
+    let suffix = 2;
+    while (usedNames.has(name.toLocaleLowerCase("zh-CN"))) {
+      const tail = `-${suffix++}`;
+      name = `${source.slice(0, 31 - tail.length)}${tail}`;
+    }
+    usedNames.add(name.toLocaleLowerCase("zh-CN"));
+    return { ...sheet, name };
+  });
+  const overrides = normalizedSheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
   zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${overrides}</Types>`);
   zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
-  zip.file("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sheet, index) => `<sheet name="${xmlEscape(sheet.name.slice(0, 31))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets></workbook>`);
-  zip.file("xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}</Relationships>`);
-  sheets.forEach((sheet, index) => zip.file(`xl/worksheets/sheet${index + 1}.xml`, sheetXml(sheet.rows)));
+  zip.file("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${normalizedSheets.map((sheet, index) => `<sheet name="${xmlEscape(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets></workbook>`);
+  zip.file("xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${normalizedSheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}</Relationships>`);
+  normalizedSheets.forEach((sheet, index) => zip.file(`xl/worksheets/sheet${index + 1}.xml`, sheetXml(sheet.rows)));
   return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", compression: "DEFLATE", compressionOptions: { level: 6 } });
 }
 
@@ -115,6 +128,8 @@ export async function readXlsx(buffer, filename = "工作簿") {
   const shared = sharedEntry ? [...parseXml(await sharedEntry.async("text"), filename).getElementsByTagName("si")].map((node) => node.textContent) : [];
   const stylesEntry = zip.file("xl/styles.xml");
   const styles = stylesEntry ? readStyles(parseXml(await stylesEntry.async("text"), filename)) : [];
+  const workbookProperties = workbookDoc.getElementsByTagName("workbookPr")[0];
+  const date1904 = ["1", "true"].includes((workbookProperties?.getAttribute("date1904") || "").toLowerCase());
   const sheetNodes = [...workbookDoc.getElementsByTagName("sheet")];
   if (!sheetNodes.length) throw new Error(`${filename} 不包含工作表。`);
   const worksheets = [];
@@ -134,7 +149,7 @@ export async function readXlsx(buffer, filename = "工作簿") {
         const style = styles[Number(cellNode.getAttribute("s") || 0)];
         const formula = cellNode.getElementsByTagName("f")[0]?.textContent;
         const raw = cellNode.getElementsByTagName("v")[0]?.textContent ?? cellNode.getElementsByTagName("is")[0]?.textContent ?? "";
-        row[index] = formatCellValue({ formula, type, raw, style }, shared);
+        row[index] = formatCellValue({ formula, type, raw, style, date1904 }, shared);
       });
       const rowNumber = Math.max(1, Number(rowNode.getAttribute("r") || rows.length + 1));
       while (rows.length < rowNumber - 1) rows.push([]);

@@ -15,6 +15,12 @@ test("delimiter detection ignores separators inside quoted fields", () => {
   assert.equal(detectDelimiter('编号;备注\n1;"包含,逗号"'), ";");
 });
 
+test("delimiter detection keeps complete multiline records", () => {
+  const text = '编号,备注\n1,"第一行\n第二行\n第三行\n第四行\n第五行"\n2,完成';
+  assert.equal(detectDelimiter(text), ",");
+  assert.equal(parseDelimited(text)[1][1], "第一行\n第二行\n第三行\n第四行\n第五行");
+});
+
 test("invalid CSV reports an unclosed quote", () => {
   assert.throws(() => parseDelimited('编号,备注\n1,"未闭合', ","), /未闭合/);
 });
@@ -24,6 +30,13 @@ test("dedupe supports trim, case folding and keep-last", () => {
   const result = deduplicateRows(rows, [0], { trim: true, ignoreCase: true, keep: "last" });
   assert.equal(result.kept[1][1], "乙");
   assert.equal(result.duplicates.length, 2);
+});
+
+test("composite keys cannot collide with separator-like cell content", () => {
+  const rows = [["甲", "乙"], ["a\u001fb", "c"], ["a", "b\u001fc"]];
+  const result = deduplicateRows(rows, [0, 1]);
+  assert.equal(result.kept.length, 3);
+  assert.equal(result.duplicates.length, 1);
 });
 
 test("compare separates added, removed, changed and unchanged", () => {
@@ -36,8 +49,16 @@ test("compare separates added, removed, changed and unchanged", () => {
   assert.equal(result.unchanged.length, 1);
 });
 
+test("compare rejects duplicate keys instead of overwriting rows", () => {
+  const left = [["ID", "值"], ["1", "A"], ["1", "B"]];
+  const right = [["ID", "值"], ["1", "C"]];
+  assert.throws(() => compareRows(left, right, { left: [0], right: [0] }), /旧版关键列存在 1 组重复值.*2、3/);
+});
+
 test("filename sanitizer removes reserved characters", () => {
   assert.equal(sanitizeFileName(' 销售/华东:*? '), "销售_华东___");
+  assert.equal(sanitizeFileName("[华东]"), "_华东_");
+  assert.equal(sanitizeFileName("CON"), "_CON");
 });
 
 test("CSV export protects formula-like cells by default", () => {

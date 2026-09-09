@@ -3,6 +3,7 @@ const navLinks = document.querySelector(".nav-links");
 navToggle?.addEventListener("click", () => {
   const open = navLinks.classList.toggle("open");
   navToggle.setAttribute("aria-expanded", String(open));
+  navToggle.setAttribute("aria-label", open ? "关闭导航" : "打开导航");
 });
 
 document.querySelectorAll(".dropzone").forEach((zone) => {

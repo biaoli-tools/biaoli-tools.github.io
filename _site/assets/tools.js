@@ -22,10 +22,28 @@ function progress(value) {
   if (bar) bar.style.width = `${value}%`;
 }
 
+function invalidateResult() {
+  state.result = null;
+  $("#result")?.classList.remove("show");
+  if ($("#summary")) $("#summary").textContent = "";
+  if ($("#preview")) $("#preview").textContent = "";
+  progress(0);
+}
+
 function checkFile(file) {
   if (!file) throw new Error("请先选择文件。");
   if (file.size > LIMITS.maxFileBytes) throw new Error("单个文件不能超过 50 MB。请拆小后重试。");
   if (!/\.(csv|tsv|xlsx)$/i.test(file.name)) throw new Error("仅支持 CSV、TSV 和 XLSX 文件。旧版 XLS 请先在 Excel 中另存为 XLSX。");
+}
+
+function checkFileCollection(files) {
+  if (files.length > LIMITS.maxFiles) throw new Error(`一次最多处理 ${LIMITS.maxFiles} 个文件。请分批操作。`);
+  const total = files.reduce((sum, file) => sum + file.size, 0);
+  if (total > LIMITS.maxTotalFileBytes) throw new Error("所选文件累计不能超过 200 MB。请分批处理。");
+}
+
+function encoding() {
+  return $("#encoding")?.value || "utf-8";
 }
 
 function decodeBuffer(buffer, encoding = "utf-8") {
@@ -102,7 +120,9 @@ function bindSingleUpload(onReady) {
   const input = $("#files");
   input.addEventListener("change", async () => {
     clearStatus();
-    $("#result")?.classList.remove("show");
+    invalidateResult();
+    state.files = [];
+    state.tables = [];
     try {
       const file = input.files[0];
       checkFile(file);
@@ -110,7 +130,7 @@ function bindSingleUpload(onReady) {
       status(warning || `正在读取 ${file.name}…`, warning ? "warning" : "");
       await new Promise((resolve) => requestAnimationFrame(resolve));
       progress(30);
-      const table = await readFile(file, $("#encoding")?.value || "utf-8");
+      const table = await readFile(file, encoding());
       state.files = [file];
       state.tables = [table];
       progress(100);
@@ -120,6 +140,21 @@ function bindSingleUpload(onReady) {
       progress(0);
       status(error.message, "error");
     }
+  });
+}
+
+function bindEncodingReload(inputs, { reload = true } = {}) {
+  const control = $("#encoding");
+  if (!control) return;
+  control.addEventListener("change", () => {
+    invalidateResult();
+    if (!reload) {
+      status("文字编码已切换，请重新处理已选文件。");
+      return;
+    }
+    const selected = inputs.filter((input) => input?.files?.length);
+    selected.forEach((input) => input.dispatchEvent(new Event("change", { bubbles: true })));
+    if (!selected.length) status("已切换文字编码。选择 CSV 或 TSV 后会按新编码读取。");
   });
 }
 
@@ -133,7 +168,9 @@ function selectedIndexes(node) {
 
 function initializeConverter() {
   bindSingleUpload((table) => tablePreview(table.rows));
+  bindEncodingReload([$("#files")]);
   $("#run").addEventListener("click", async () => {
+    invalidateResult();
     try {
       if (!state.tables[0]) throw new Error("请先选择一个表格文件。");
       progress(55);
@@ -160,7 +197,9 @@ function initializeDedupe() {
     fillColumnChecks($("#columns"), table.rows[0]);
     tablePreview(table.rows);
   });
+  bindEncodingReload([$("#files")]);
   $("#run").addEventListener("click", async () => {
+    invalidateResult();
     try {
       const table = state.tables[0];
       if (!table) throw new Error("请先选择一个表格文件。");
@@ -181,42 +220,64 @@ function renderFileList() {
   list.innerHTML = state.files.map((file, index) => `<div class="file-item"><span>${escapeHtml(file.name)} · ${(file.size / 1024).toFixed(1)} KB</span><span class="file-actions"><button class="icon-button" data-up="${index}" aria-label="上移" title="上移">↑</button><button class="icon-button" data-down="${index}" aria-label="下移" title="下移">↓</button><button class="icon-button" data-remove="${index}" aria-label="移除" title="移除">×</button></span></div>`).join("");
   $$('[data-up]').forEach((button) => button.addEventListener("click", () => moveFile(Number(button.dataset.up), -1)));
   $$('[data-down]').forEach((button) => button.addEventListener("click", () => moveFile(Number(button.dataset.down), 1)));
-  $$('[data-remove]').forEach((button) => button.addEventListener("click", () => { state.files.splice(Number(button.dataset.remove), 1); renderFileList(); }));
+  $$('[data-remove]').forEach((button) => button.addEventListener("click", () => {
+    state.files.splice(Number(button.dataset.remove), 1);
+    invalidateResult();
+    renderFileList();
+    status(`当前保留 ${state.files.length} 个文件，请重新处理。`);
+  }));
 }
 
 function moveFile(index, delta) {
   const target = index + delta;
   if (target < 0 || target >= state.files.length) return;
   [state.files[index], state.files[target]] = [state.files[target], state.files[index]];
+  invalidateResult();
   renderFileList();
+  status("文件顺序已调整，请重新处理。");
 }
 
 function initializeMerge() {
   $("#files").addEventListener("change", () => {
     try {
+      invalidateResult();
       state.files = [...$("#files").files];
       state.files.forEach(checkFile);
+      checkFileCollection(state.files);
       renderFileList();
       const warning = largeFileWarning(state.files);
       status(warning || `已选择 ${state.files.length} 个文件，可调整合并顺序。`, warning ? "warning" : "");
-    } catch (error) { status(error.message, "error"); }
+    } catch (error) {
+      state.files = [];
+      $("#files").value = "";
+      renderFileList();
+      status(error.message, "error");
+    }
   });
+  bindEncodingReload([$("#files")], { reload: false });
   $("#run").addEventListener("click", async () => {
+    invalidateResult();
     try {
       if (state.files.length < 2) throw new Error("请至少选择两个文件。");
       progress(10);
+      const files = [...state.files];
       const tables = [];
-      for (let i = 0; i < state.files.length; i += 1) {
-        tables.push(await readFile(state.files[i]));
-        progress(10 + ((i + 1) / state.files.length) * 55);
+      for (let i = 0; i < files.length; i += 1) {
+        tables.push(await readFile(files[i], encoding()));
+        progress(10 + ((i + 1) / files.length) * 55);
       }
       const mode = $("#merge-mode").value;
       if (mode === "sheets") {
         const used = new Set();
         const sheets = tables.map((table, index) => {
-          let name = sanitizeFileName(table.name.replace(/\.[^.]+$/, "")).slice(0, 27) || `表${index + 1}`;
-          while (used.has(name)) name = `${name.slice(0, 25)}-${index + 1}`;
-          used.add(name);
+          const base = sanitizeFileName(table.name.replace(/\.[^.]+$/, "")).slice(0, 27) || `表${index + 1}`;
+          let name = base;
+          let suffix = 2;
+          while (used.has(name.toLocaleLowerCase("zh-CN"))) {
+            const tail = `-${suffix++}`;
+            name = `${base.slice(0, 27 - tail.length)}${tail}`;
+          }
+          used.add(name.toLocaleLowerCase("zh-CN"));
           return { name, rows: table.rows };
         });
         state.result = { blob: await workbookBlob(sheets), name: "多表合并结果.xlsx" };
@@ -236,7 +297,9 @@ function initializeMerge() {
 
 function initializeSplit() {
   bindSingleUpload((table) => { fillSelect($("#group-column"), table.rows[0]); tablePreview(table.rows); });
+  bindEncodingReload([$("#files")]);
   $("#run").addEventListener("click", async () => {
+    invalidateResult();
     try {
       const table = state.tables[0];
       if (!table) throw new Error("请先选择一个表格文件。");
@@ -255,8 +318,8 @@ function initializeSplit() {
       for (const [key, rows] of groups) {
         let name = sanitizeFileName(key);
         let suffix = 2;
-        while (used.has(name)) name = `${sanitizeFileName(key).slice(0, 70)}-${suffix++}`;
-        used.add(name);
+        while (used.has(name.toLocaleLowerCase("zh-CN"))) name = `${sanitizeFileName(key).slice(0, 70)}-${suffix++}`;
+        used.add(name.toLocaleLowerCase("zh-CN"));
         zip.file(`${name}.xlsx`, await workbookBlob([{ name: "数据", rows }]));
         done += 1;
         progress((done / groups.size) * 70);
@@ -274,12 +337,17 @@ function initializeCompare() {
   const inputs = [$("#left-file"), $("#right-file")];
   inputs.forEach((input, side) => input.addEventListener("change", async () => {
     try {
+      invalidateResult();
+      state.files[side] = undefined;
+      state.tables[side] = undefined;
       const file = input.files[0];
       checkFile(file);
+      state.files[side] = file;
+      checkFileCollection(state.files.filter(Boolean));
       const warning = largeFileWarning([file]);
       status(warning || `正在读取${side === 0 ? "旧版" : "新版"}文件…`, warning ? "warning" : "");
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      const table = await readFile(file);
+      const table = await readFile(file, encoding());
       state.tables[side] = table;
       status(warning || `已读取${side === 0 ? "旧版" : "新版"}：${table.rows.length - 1} 行。`, warning ? "warning" : "");
       if (state.tables[0] && state.tables[1]) {
@@ -288,9 +356,15 @@ function initializeCompare() {
         select.innerHTML = common.map((header) => `<option value="${escapeHtml(header)}">${escapeHtml(header)}</option>`).join("");
         if (!common.length) status("两个表没有同名列，无法选择匹配键。", "error");
       }
-    } catch (error) { status(error.message, "error"); }
+    } catch (error) {
+      state.files[side] = undefined;
+      state.tables[side] = undefined;
+      status(error.message, "error");
+    }
   }));
+  bindEncodingReload(inputs);
   $("#run").addEventListener("click", async () => {
+    invalidateResult();
     try {
       const [left, right] = state.tables;
       if (!left || !right) throw new Error("请分别选择旧版和新版文件。");
@@ -309,6 +383,10 @@ function initializeCompare() {
   });
   $("#download").addEventListener("click", () => state.result && download(state.result.blob, state.result.name));
 }
+
+document.addEventListener("change", (event) => {
+  if (event.target.matches('select:not(#encoding), input[type="checkbox"]')) invalidateResult();
+});
 
 if (tool === "converter") initializeConverter();
 if (tool === "dedupe") initializeDedupe();

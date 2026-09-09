@@ -22,8 +22,21 @@ test("xlsx writer creates a valid Open XML package", async () => {
   assert.match(sheet, /项目甲/);
 });
 
+test("xlsx writer cleans and deduplicates worksheet names", async () => {
+  const blob = await writeXlsx([
+    { name: "[华东]", rows: [["值"], ["1"]] },
+    { name: "[华东]", rows: [["值"], ["2"]] }
+  ]);
+  const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  const workbook = await zip.file("xl/workbook.xml").async("text");
+  assert.match(workbook, /name="_华东_"/);
+  assert.match(workbook, /name="_华东_-2"/);
+  assert.doesNotMatch(workbook, /name="\[华东\]"/);
+});
+
 test("xlsx values normalize dates and preserve formulas as text", () => {
   assert.equal(formatExcelDate("46274", "yyyy-mm-dd"), "2026-09-09");
+  assert.equal(formatExcelDate("0", "yyyy-mm-dd", true), "1904-01-01");
   assert.equal(formatCellValue({ formula: "C2*2", type: "n", raw: "25", style: null }), "=C2*2");
   assert.equal(formatCellValue({ type: "b", raw: "1", style: null }), "TRUE");
 });

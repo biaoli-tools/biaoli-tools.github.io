@@ -1,5 +1,7 @@
 export const LIMITS = {
   maxFileBytes: 50 * 1024 * 1024,
+  maxTotalFileBytes: 200 * 1024 * 1024,
+  maxFiles: 50,
   warnFileBytes: 20 * 1024 * 1024,
   previewRows: 12,
   previewColumns: 12
@@ -19,7 +21,7 @@ export function normalizeCell(value, { trim = false, ignoreCase = false } = {}) 
 }
 
 export function makeKey(row, indexes, options = {}) {
-  return indexes.map((index) => normalizeCell(row[index], options)).join("\u001f");
+  return JSON.stringify(indexes.map((index) => normalizeCell(row[index], options)));
 }
 
 export function deduplicateRows(rows, indexes, options = {}) {
@@ -50,6 +52,20 @@ export function compareRows(leftRows, rightRows, keyIndexes, options = {}) {
   const rightHeader = rightRows[0] || [];
   const headers = [...new Set([...leftHeader, ...rightHeader])];
   const align = (row, sourceHeader) => headers.map((name) => row[sourceHeader.indexOf(name)] ?? "");
+  const duplicateSummary = (rows, indexes, label) => {
+    const positions = new Map();
+    rows.slice(1).forEach((row, index) => {
+      const key = makeKey(row, indexes, options);
+      if (!positions.has(key)) positions.set(key, []);
+      positions.get(key).push(index + 2);
+    });
+    const duplicates = [...positions.values()].filter((items) => items.length > 1);
+    if (!duplicates.length) return "";
+    const examples = duplicates.slice(0, 3).map((items) => items.join("、")).join("；");
+    return `${label}关键列存在 ${duplicates.length} 组重复值（数据行 ${examples}），请先去重后再比较。`;
+  };
+  const duplicateError = duplicateSummary(leftRows, keyIndexes.left, "旧版") || duplicateSummary(rightRows, keyIndexes.right, "新版");
+  if (duplicateError) throw new Error(duplicateError);
   const leftMap = new Map(leftRows.slice(1).map((row) => [makeKey(row, keyIndexes.left, options), align(row, leftHeader)]));
   const rightMap = new Map(rightRows.slice(1).map((row) => [makeKey(row, keyIndexes.right, options), align(row, rightHeader)]));
   const keys = new Set([...leftMap.keys(), ...rightMap.keys()]);
@@ -69,22 +85,40 @@ export function compareRows(leftRows, rightRows, keyIndexes, options = {}) {
 }
 
 export function sanitizeFileName(value, fallback = "未命名") {
-  const clean = String(value ?? "")
+  let clean = String(value ?? "")
     .trim()
-    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
+    .replace(/[\\/:*?"<>|\[\]\u0000-\u001f]/g, "_")
     .replace(/[. ]+$/g, "")
     .slice(0, 80);
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(clean)) clean = `_${clean}`;
   return clean || fallback;
 }
 
+function sampleCompleteRecords(text, limit = 5) {
+  let quoted = false;
+  let records = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '"') {
+      if (quoted && text[index + 1] === '"') index += 1;
+      else quoted = !quoted;
+    } else if (char === "\n" && !quoted) {
+      records += 1;
+      if (records >= limit) return text.slice(0, index + 1);
+    }
+  }
+  return text;
+}
+
 export function detectDelimiter(text) {
-  const sample = text.split(/\r?\n/).slice(0, 5).join("\n");
+  const sample = sampleCompleteRecords(text);
   const candidates = [",", "\t", ";", "|"];
   return candidates
     .map((delimiter) => {
       const widths = parseDelimited(sample, delimiter).map((row) => row.length);
-      const commonWidth = Math.max(0, ...widths);
-      const consistentRows = widths.filter((width) => width === commonWidth).length;
+      const frequencies = new Map();
+      widths.forEach((width) => frequencies.set(width, (frequencies.get(width) || 0) + 1));
+      const [commonWidth = 0, consistentRows = 0] = [...frequencies].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0] || [];
       return { delimiter, score: commonWidth > 1 ? consistentRows * commonWidth : 0 };
     })
     .sort((a, b) => b.score - a.score)[0].delimiter;

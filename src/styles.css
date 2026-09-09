@@ -88,10 +88,12 @@ h1 { margin: 0; font-size: 58px; }
 .step-title h2 { margin: 0; font-size: 18px; }
 .dropzone { min-height: 150px; display: grid; place-items: center; padding: 24px; border: 1px dashed #9aaa9f; background: #fafcfb; text-align: center; transition: border-color .15s ease, background .15s ease; }
 .dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone:focus-within { outline: 3px solid rgb(22 114 74 / 28%); outline-offset: 3px; border-color: var(--accent); }
 .dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .dropzone strong { display: block; margin-bottom: 4px; }
 .dropzone small { color: var(--muted); }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.control-spacing { margin-top: 16px; }
 .field { display: grid; gap: 6px; }
 .field.full { grid-column: 1 / -1; }
 .field[role="group"], fieldset.field { min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -117,6 +119,7 @@ h1 { margin: 0; font-size: 58px; }
 .result.show { display: block; animation: reveal .25s ease both; }
 .result-summary { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; color: var(--muted); font-size: 14px; }
 .result-summary strong { color: var(--ink); }
+.result-actions { margin-top: 16px; }
 .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--line); }
 table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 13px; }
 th, td { max-width: 260px; padding: 9px 11px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; text-align: left; }

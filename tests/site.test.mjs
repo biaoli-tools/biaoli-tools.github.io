@@ -29,10 +29,30 @@ test("SEO output excludes obsolete FAQ markup and keeps the 404 out of the index
     assert.doesNotMatch(html, /"@type":"FAQPage"/, relative);
     assert.doesNotMatch(html, /<span><h3>/, relative);
     assert.match(html, /og:image/, relative);
+    assert.match(html, /id="encoding"/, `${relative}: missing CSV encoding selector`);
+    assert.match(html, /"dateModified":"\d{4}-\d{2}-\d{2}"/, `${relative}: missing schema freshness date`);
   }
   const notFound = readFileSync(path.join(root, "404.html"), "utf8");
   assert.match(notFound, /name="robots" content="noindex,follow"/);
   assert.doesNotMatch(notFound, /rel="canonical"/);
+});
+
+test("published guidance matches split and compare behavior", () => {
+  const converter = readFileSync(path.join(root, "csv-excel-converter/index.html"), "utf8");
+  const split = readFileSync(path.join(root, "excel-split-by-column/index.html"), "utf8");
+  const compare = readFileSync(path.join(root, "excel-compare/index.html"), "utf8");
+  assert.match(converter, /自动按新编码重新读取当前文件/);
+  assert.doesNotMatch(converter, /切换编码后要重新选择文件/);
+  assert.match(split, /“华东”和“华东 ”会进入同一文件/);
+  assert.doesNotMatch(split, /“华东”和“华东 ”是两个不同分组/);
+  assert.match(compare, /发现重复值时，工具会停止/);
+});
+
+test("all tool runs and merge encoding changes invalidate old results", () => {
+  const source = readFileSync(path.resolve("src/js/tools.js"), "utf8");
+  const runInvalidations = source.match(/\$\("#run"\)\.addEventListener\("click", async \(\) => \{\s+invalidateResult\(\);/g) || [];
+  assert.equal(runInvalidations.length, 5);
+  assert.match(source, /function initializeMerge\(\)[\s\S]*?bindEncodingReload\(\[\$\("#files"\)\], \{ reload: false \}\)/);
 });
 
 test("tool explanations have substantial visible content", () => {

@@ -4,6 +4,8 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 const out = path.join(root, "_site");
 const site = "https://biaoli-tools.github.io";
+const buildDate = new Date().toISOString().slice(0, 10);
+const chineseBuildDate = `${buildDate.slice(0, 4)} 年 ${Number(buildDate.slice(5, 7))} 月 ${Number(buildDate.slice(8, 10))} 日`;
 
 const tools = [
   { slug: "csv-excel-converter", id: "converter", name: "CSV / Excel 转换", short: "CSV、TSV 与 XLSX 互转", description: "在浏览器本地完成 CSV、TSV 与 XLSX 格式转换，可选择中文编码并保留长数字文本。", sample: "/samples/converter-sample.csv" },
@@ -87,16 +89,23 @@ function commonUpload({ multiple = false, id = "files", label = "选择文件", 
   return `<label class="dropzone" for="${id}"><span><strong>${label}</strong><small>支持 XLSX、CSV、TSV；单个文件不超过 50 MB</small></span><input id="${id}" type="file" accept="${accept}"${multiple ? " multiple" : ""}></label>`;
 }
 
+function encodingControl() {
+  return `<div class="field"><label for="encoding">CSV / TSV 文字编码</label><select id="encoding"><option value="utf-8">UTF-8</option><option value="gb18030">GBK / GB18030</option><option value="big5">Big5</option></select></div>`;
+}
+
 const controls = {
-  converter: `${commonUpload()}<div class="field-grid" style="margin-top:16px"><div class="field"><label for="encoding">CSV 文字编码</label><select id="encoding"><option value="utf-8">UTF-8</option><option value="gb18030">GBK / GB18030</option><option value="big5">Big5</option></select></div><div class="field"><label for="output-format">输出格式</label><select id="output-format"><option value="auto">自动选择相反格式</option><option value="xlsx">Excel（XLSX）</option><option value="csv">CSV（UTF-8）</option><option value="tsv">TSV（UTF-8）</option></select></div><div class="field full"><div class="checks"><label><input id="protect-formulas" type="checkbox" checked>CSV 安全导出：公式型内容按文本保存</label></div></div></div>`,
-  dedupe: `${commonUpload()}<div class="field-grid" style="margin-top:16px"><fieldset class="field full"><legend>去重依据（可选择多列）</legend><div id="columns" class="column-options"><span class="field-placeholder">读取文件后显示列</span></div></fieldset><div class="field"><label for="keep">重复时保留</label><select id="keep"><option value="first">第一条</option><option value="last">最后一条</option></select></div><div class="field"><label>文字比较</label><div class="checks"><label><input id="trim" type="checkbox" checked>忽略首尾空格</label><label><input id="ignore-case" type="checkbox">忽略大小写</label></div></div></div>`,
-  merge: `${commonUpload({ multiple: true, label: "选择至少两个文件" })}<div id="file-list" class="file-list" aria-live="polite"></div><div class="field" style="margin-top:16px"><label for="merge-mode">合并方式</label><select id="merge-mode"><option value="rows">按行合并，同名表头自动对齐</option><option value="sheets">每个文件保留为独立工作表</option></select></div>`,
-  split: `${commonUpload()}<div class="field" style="margin-top:16px"><label for="group-column">分组列</label><select id="group-column"><option>读取文件后显示列</option></select></div>`,
-  compare: `<div class="field-grid"><div class="field">${commonUpload({ id: "left-file", label: "选择旧版文件" })}</div><div class="field">${commonUpload({ id: "right-file", label: "选择新版文件" })}</div><div class="field"><label for="key-column">关键列</label><select id="key-column"><option>读取两个文件后显示共有列</option></select></div><div class="field"><label>匹配规则</label><div class="checks"><label><input id="trim" type="checkbox" checked>忽略首尾空格</label><label><input id="ignore-case" type="checkbox">忽略大小写</label></div></div></div>`
+  converter: `${commonUpload()}<div class="field-grid control-spacing">${encodingControl()}<div class="field"><label for="output-format">输出格式</label><select id="output-format"><option value="auto">自动选择相反格式</option><option value="xlsx">Excel（XLSX）</option><option value="csv">CSV（UTF-8）</option><option value="tsv">TSV（UTF-8）</option></select></div><div class="field full"><div class="checks"><label><input id="protect-formulas" type="checkbox" checked>CSV 安全导出：公式型内容按文本保存</label></div></div></div>`,
+  dedupe: `${commonUpload()}<div class="field-grid control-spacing"><fieldset class="field full"><legend>去重依据（可选择多列）</legend><div id="columns" class="column-options"><span class="field-placeholder">读取文件后显示列</span></div></fieldset>${encodingControl()}<div class="field"><label for="keep">重复时保留</label><select id="keep"><option value="first">第一条</option><option value="last">最后一条</option></select></div><div class="field full"><label>文字比较</label><div class="checks"><label><input id="trim" type="checkbox" checked>忽略首尾空格</label><label><input id="ignore-case" type="checkbox">忽略大小写</label></div></div></div>`,
+  merge: `${commonUpload({ multiple: true, label: "选择至少两个文件" })}<div id="file-list" class="file-list" aria-live="polite"></div><div class="field-grid control-spacing">${encodingControl()}<div class="field"><label for="merge-mode">合并方式</label><select id="merge-mode"><option value="rows">按行合并，同名表头自动对齐</option><option value="sheets">每个文件保留为独立工作表</option></select></div></div>`,
+  split: `${commonUpload()}<div class="field-grid control-spacing">${encodingControl()}<div class="field"><label for="group-column">分组列</label><select id="group-column"><option>读取文件后显示列</option></select></div></div>`,
+  compare: `<div class="field-grid"><div class="field">${commonUpload({ id: "left-file", label: "选择旧版文件" })}</div><div class="field">${commonUpload({ id: "right-file", label: "选择新版文件" })}</div>${encodingControl()}<div class="field"><label for="key-column">关键列</label><select id="key-column"><option>读取两个文件后显示共有列</option></select></div><div class="field full"><label>匹配规则</label><div class="checks"><label><input id="trim" type="checkbox" checked>忽略首尾空格</label><label><input id="ignore-case" type="checkbox">忽略大小写</label></div></div></div>`
 };
 
 const content = {
   converter: {
+    notesTitle: "转换前先确认这三点",
+    faqTitle: "格式转换常见问题",
+    relatedTitle: "转换后继续整理",
     privacy: "转换在当前浏览器内完成，文件内容不会发送到本站服务器。",
     guideTitle: "先判断问题出在格式还是编码",
     guide: "同样叫“表格文件”，CSV 和 XLSX 的结构并不一样。CSV 本质上是一份纯文本，乱码通常与文字编码有关；XLSX 则是压缩后的工作簿。这个转换器适合整理系统导出的名单、订单和报表，不适合拿来复制带图表、宏或复杂样式的工作簿。",
@@ -106,12 +115,15 @@ const content = {
     outputTitle: "下载前重点看三类列",
     output: "先抽查订单号、手机号等长数字，再看日期，最后核对原文件中的公式列。CSV 不包含多个工作表，XLSX 转 CSV 时只会使用第一个工作表。",
     stepsTitle: "实际转换只需三步",
-    steps: ["选择 CSV、TSV 或 XLSX。旧版 XLS 需要先在表格软件中另存为 XLSX。", "若 CSV 中文显示异常，切换到 GBK / GB18030 或 Big5 后重新选择文件。", "确认有限预览和输出格式，再生成并下载结果。"],
+    steps: ["选择 CSV、TSV 或 XLSX。旧版 XLS 需要先在表格软件中另存为 XLSX。", "若 CSV 中文显示异常，切换到 GBK / GB18030 或 Big5，页面会自动重新读取已选文件。", "确认有限预览和输出格式，再生成并下载结果。"],
     notes: ["20 MB 以上会出现性能提醒，单个文件上限为 50 MB。", "CSV 输出统一使用带 BOM 的 UTF-8，方便常见表格软件识别中文。", "复杂数字格式不会原样复制，请对照原文件抽查。"],
     limits: "转换解决的是数据交换，不是工作簿克隆。合并单元格、颜色、图表、数据透视表、宏和外部链接不会保留。",
-    faq: [["CSV 转 Excel 后，手机号前面的 0 会丢失吗？", "不会主动去掉。CSV 字段会作为文本写入 XLSX，像 013800000001 这样的内容仍按原文字保存。"], ["为什么 CSV 打开是乱码？", "常见原因是导出系统使用 GBK。切换编码后要重新选择文件，页面才会按新编码读取。"], ["为什么日期和原文件显示得不完全一样？", "工具会把识别出的日期统一整理成容易核对的格式，不复制自定义年月日格式、颜色或货币样式。"]]
+    faq: [["CSV 转 Excel 后，手机号前面的 0 会丢失吗？", "不会主动去掉。CSV 字段会作为文本写入 XLSX，像 013800000001 这样的内容仍按原文字保存。"], ["为什么 CSV 打开是乱码？", "常见原因是导出系统使用 GBK。切换编码后，页面会自动按新编码重新读取当前文件。"], ["为什么日期和原文件显示得不完全一样？", "工具会把识别出的日期统一整理成容易核对的格式，不复制自定义年月日格式、颜色或货币样式。"]]
   },
   dedupe: {
+    notesTitle: "避免误删的检查项",
+    faqTitle: "去重时常见的疑问",
+    relatedTitle: "去重后继续处理",
     privacy: "去重规则在本机执行，名单内容不会上传或留存在本站。",
     guideTitle: "去重前，先想清楚哪几列代表同一条记录",
     guide: "名单里姓名相同，不一定是同一个人；订单号相同，通常才表示同一笔订单。选择多列后，只有这些列的组合都一样才算重复。比较规则会影响结果，所以工具会把删掉的行单独留下，方便你回头检查。",
@@ -127,6 +139,9 @@ const content = {
     faq: [["姓名相同能直接去重吗？", "不建议。更稳妥的做法是同时选择客户编号、手机号后四位等能区分记录的字段，但不要把真实敏感数据分享给无关人员。"], ["忽略大小写会影响中文吗？", "中文本身通常没有大小写差异，这个选项主要影响英文编号和邮箱。"], ["删除的行还能找回吗？", "能。工具不会覆盖原文件，下载结果里还会保留一张“重复行”工作表。"]]
   },
   merge: {
+    notesTitle: "合并前值得检查",
+    faqTitle: "合并文件常见问题",
+    relatedTitle: "合并前后常用工具",
     privacy: "多份文件只在当前页面中合并，本站不会接收表格内容。",
     guideTitle: "列顺序不同，不代表不能合并",
     guide: "月报 A 的顺序可能是“门店、订单号、金额”，月报 B 却是“订单号、金额、门店”。按行合并时，工具看的是表头名称，不是列位置。某个文件没有的列会留空，多出来的列则会追加到结果右侧。",
@@ -137,11 +152,14 @@ const content = {
     output: "结果区会显示文件数、总数据行数和统一后的列数。若列数比预期多，通常是“客户名称”和“客户名”这类表头写法不一致，需要先统一命名再合并。",
     stepsTitle: "合并前的快速检查",
     steps: ["一次选择至少两个文件，确认列表顺序。", "根据用途选择按行合并或按工作表保留。", "生成预览，检查总行数与新增列，再下载工作簿。"],
-    notes: ["所有输入都把第一行当作表头，文件中不要夹带标题说明行。", "多文件累计体积较大时，浏览器内存占用会明显增加。", "原有颜色、列宽、图表和宏不会进入新工作簿。"],
+    notes: ["所有输入都把第一行当作表头，文件中不要夹带标题说明行。", "一次最多选择 50 个文件，累计不能超过 200 MB。", "原有颜色、列宽、图表和宏不会进入新工作簿。"],
     limits: "“销售额”和“销售金额”会被视为两列，工具不会根据含义自动合并。先统一表头，通常比合并后再清理省事。",
     faq: [["列的前后顺序不同可以合并吗？", "可以，只要表头文字一致。工具会把同名列放到同一位置。"], ["为什么合并后多出很多空列？", "多数情况是表头存在空格、简称或不同写法。请检查新增列名称，必要时先在源文件中统一。"], ["一个工作簿里的所有工作表都会合并吗？", "不会。当前版本每个 XLSX 只读取第一张工作表；需要处理其他工作表时，请先单独另存。"]]
   },
   split: {
+    notesTitle: "拆分前留意分组值",
+    faqTitle: "拆分文件常见问题",
+    relatedTitle: "拆分前后常用工具",
     privacy: "分组和打包都由浏览器完成，关闭页面后处理状态随即清空。",
     guideTitle: "适合拆部门表，也适合拆门店和负责人",
     guide: "一张总表要分别发给多个部门时，手工筛选和复制很容易漏行。选择“部门”列后，相同部门的数据会进入同一个 XLSX。工具先显示分组数量，确认没有异常空值后，再一次下载 ZIP。",
@@ -152,14 +170,17 @@ const content = {
     output: "结果预览列出每个分组及对应行数。下载后先解压并抽查人数较多、含空值和名称相近的分组，确认没有因为空格或不同写法被拆成两份。",
     stepsTitle: "拆分时别漏掉这一步",
     steps: ["载入总表，选择部门、门店或负责人等分组列。", "查看分组数量和行数，特别留意“空值”分组。", "生成 ZIP，解压后抽查文件名和每份表的表头。"],
-    notes: ["“华东”和“华东 ”是两个不同分组，处理前最好先清理空格。", "有多张工作表时，请把要拆分的表移到第一张或单独另存。", "每个输出文件只包含数据值，不复制复杂样式。"],
+    notes: ["分组值会忽略首尾空格，因此“华东”和“华东 ”会进入同一文件。", "有多张工作表时，请把要拆分的表移到第一张或单独另存。", "每个输出文件只包含数据值，不复制复杂样式。"],
     limits: "工具按单列原值分组，不会识别同义词。例如“直营一部”和“一部”会生成两份文件。",
-    faq: [["同一部门的记录会放在一起吗？", "会，只要分组列中的文字完全一致。建议先检查首尾空格和简称。"], ["分组名称里有斜杠怎么办？", "斜杠会替换成下划线；替换后若出现同名文件，工具会自动加数字区分。"], ["为什么 ZIP 里有“空值.xlsx”？", "说明部分数据的分组列为空。保留这份表是为了让你发现问题，而不是直接忽略这些记录。"]]
+    faq: [["同一部门的记录会放在一起吗？", "会。工具会先去掉分组值首尾空格，再按完整文字分组；简称不同仍会分成两份。"], ["分组名称里有斜杠怎么办？", "斜杠会替换成下划线；替换后若出现同名文件，工具会自动加数字区分。"], ["为什么 ZIP 里有“空值.xlsx”？", "说明部分数据的分组列为空。保留这份表是为了让你发现问题，而不是直接忽略这些记录。"]]
   },
   compare: {
+    notesTitle: "对比可信度取决于关键列",
+    faqTitle: "版本对比常见问题",
+    relatedTitle: "对比前后常用工具",
     privacy: "两个版本只在本地读取和比较，不会传给远端服务。",
     guideTitle: "对比表格，关键不是行号，而是唯一编号",
-    guide: "两个版本只要重新排序，按行号对比就会产生大量假差异。这里会用订单 ID、员工编号等关键列先找到同一条记录，再比较其他字段。关键列必须尽量唯一，否则后出现的记录会覆盖前面的匹配结果。",
+    guide: "两个版本只要重新排序，按行号对比就会产生大量假差异。这里会用订单 ID、员工编号等关键列先找到同一条记录，再比较其他字段。关键列必须唯一；发现重复值时，工具会停止并提示对应数据行。",
     example: { title: "顺序变化不会算修改", caption: "示例：ID 相同才会继续比较状态。", headers: ["ID", "旧版", "新版", "分类"], rows: [["A01", "待处理", "已完成", "修改"], ["A02", "已完成", "无此记录", "删除"], ["A03", "无此记录", "待处理", "新增"]] },
     rulesTitle: "四类结果是怎么判定的",
     rules: ["新版有、旧版没有的关键列值记为新增。", "旧版有、新版没有的关键列值记为删除。", "两边都有但其他列内容不同的记为修改，并列出变更列名。", "两边内容相同的记录放入未变化工作表，行顺序变化不算差异。"],
@@ -167,9 +188,9 @@ const content = {
     output: "结果工作簿分为新增、删除、修改和未变化四张表。通常先检查修改项的“变更列”，再确认新增和删除是否来自业务变化，而不是关键列格式不一致。",
     stepsTitle: "得到可信差异的顺序",
     steps: ["分别选择旧版、新版，并确认两张表都有同名关键列。", "选择能唯一识别记录的字段，按需忽略空格或英文大小写。", "查看四类数量，下载结果后核对重复关键列和空关键列。"],
-    notes: ["对比前最好先用去重工具检查关键列是否唯一。", "旧版和新版都只读取各自排在第一位的工作表。", "新版新增的列会参与比较，并可能让多条记录进入修改分类。"],
+    notes: ["关键列有重复值时不会继续导出，请根据提示先去重。", "旧版和新版都只读取各自排在第一位的工作表。", "新版新增的列会参与比较，并可能让多条记录进入修改分类。"],
     limits: "当前版本只能选择一个关键列。若业务需要“门店 + 商品编码”这样的组合键，请先新增一列组合编号。",
-    faq: [["调整行顺序会被当作修改吗？", "不会。记录按关键列匹配，单纯排序不会制造差异。"], ["为什么修改数量比预期多？", "先检查新版是否多了列、关键列格式是否一致，以及空格和英文大小写选项是否符合数据情况。"], ["关键列有重复值会怎样？", "同一关键值只会保留最后出现的一行参与对比，所以应先去重，避免遗漏差异。"]]
+    faq: [["调整行顺序会被当作修改吗？", "不会。记录按关键列匹配，单纯排序不会制造差异。"], ["为什么修改数量比预期多？", "先检查新版是否多了列、关键列格式是否一致，以及空格和英文大小写选项是否符合数据情况。"], ["关键列有重复值会怎样？", "工具会停止比较，并提示重复值所在的数据行。先去重或换用真正唯一的关键列，再重新运行。"]]
   }
 };
 
@@ -177,9 +198,9 @@ function toolPage(tool) {
   const info = content[tool.id];
   const example = `<div class="example-block"><h2>${info.example.title}</h2><div class="table-wrap"><table><caption>${info.example.caption}</caption><thead><tr>${info.example.headers.map((value) => `<th>${value}</th>`).join("")}</tr></thead><tbody>${info.example.rows.map((row) => `<tr>${row.map((value) => `<td>${value}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
   const body = `<section class="tool-header"><div class="shell"><div class="breadcrumbs"><a href="/">首页</a> / ${tool.name}</div><p class="eyebrow">免费使用 · 浏览器本地处理</p><h1>${tool.name}</h1><p class="lead">${tool.description} ${info.privacy}</p></div></section>
-  <section class="workspace"><div class="shell workspace-grid"><div class="workbench"><div class="step"><div class="step-title"><b>1</b><h2>选择文件与规则</h2></div>${controls[tool.id]}<div id="status" class="status" role="status" aria-live="polite"></div><div id="progress" class="progress" aria-hidden="true"><span></span></div></div><div class="step"><div class="step-title"><b>2</b><h2>开始处理</h2></div><div class="actions"><button id="run" class="button primary" type="button">处理并生成预览</button><a class="button" href="${tool.sample}" download>下载简单样例</a></div></div><div id="result" class="step result"><div class="step-title"><b>3</b><h2>检查并下载</h2></div><div id="summary" class="result-summary"></div><div id="preview" class="table-wrap"></div><div class="actions" style="margin-top:16px"><button id="download" class="button primary" type="button">下载处理结果</button></div></div></div><aside class="side-note"><h2>这页需要留意</h2><ul>${info.notes.map((note) => `<li>${note}</li>`).join("")}</ul><div class="notice"><strong>请保留原文件</strong><p>${info.limits}</p></div></aside></div></section>
-  <section class="section white"><div class="shell content"><h2>${info.guideTitle}</h2><p>${info.guide}</p>${example}<h2>${info.rulesTitle}</h2><ul>${info.rules.map((rule) => `<li>${rule}</li>`).join("")}</ul><h2>${info.outputTitle}</h2><p>${info.output}</p><h2>${info.stepsTitle}</h2><ol>${info.steps.map((step) => `<li>${step}</li>`).join("")}</ol><h2>使用中常见的疑问</h2><div class="faq">${info.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`).join("")}</div><h2>接着处理</h2><p>${tools.filter((item) => item.id !== tool.id).slice(0, 3).map((item) => `<a href="/${item.slug}/">${item.name}</a>`).join(" · ")}</p></div></section>`;
-  const schemas = [{ "@context": "https://schema.org", "@type": "WebApplication", name: tool.name, applicationCategory: "BusinessApplication", operatingSystem: "Any", browserRequirements: "需要支持 JavaScript 的现代浏览器", url: `${site}/${tool.slug}/`, description: tool.description, isAccessibleForFree: true, offers: { "@type": "Offer", price: "0", priceCurrency: "CNY" } }, { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "首页", item: site }, { "@type": "ListItem", position: 2, name: tool.name, item: `${site}/${tool.slug}/` }] }];
+  <section class="workspace"><div class="shell workspace-grid"><div class="workbench"><div class="step"><div class="step-title"><b>1</b><h2>选择文件与规则</h2></div>${controls[tool.id]}<div id="status" class="status" role="status" aria-live="polite"></div><div id="progress" class="progress" aria-hidden="true"><span></span></div></div><div class="step"><div class="step-title"><b>2</b><h2>开始处理</h2></div><div class="actions"><button id="run" class="button primary" type="button">处理并生成预览</button><a class="button" href="${tool.sample}" download>下载简单样例</a></div></div><div id="result" class="step result"><div class="step-title"><b>3</b><h2>检查并下载</h2></div><div id="summary" class="result-summary"></div><div id="preview" class="table-wrap"></div><div class="actions result-actions"><button id="download" class="button primary" type="button">下载处理结果</button></div></div></div><aside class="side-note"><h2>${info.notesTitle}</h2><ul>${info.notes.map((note) => `<li>${note}</li>`).join("")}</ul><div class="notice"><strong>请保留原文件</strong><p>${info.limits}</p></div></aside></div></section>
+  <section class="section white"><div class="shell content"><h2>${info.guideTitle}</h2><p>${info.guide}</p>${example}<h2>${info.rulesTitle}</h2><ul>${info.rules.map((rule) => `<li>${rule}</li>`).join("")}</ul><h2>${info.outputTitle}</h2><p>${info.output}</p><h2>${info.stepsTitle}</h2><ol>${info.steps.map((step) => `<li>${step}</li>`).join("")}</ol><h2>${info.faqTitle}</h2><div class="faq">${info.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`).join("")}</div><h2>${info.relatedTitle}</h2><p>${tools.filter((item) => item.id !== tool.id).slice(0, 3).map((item) => `<a href="/${item.slug}/">${item.name}</a>`).join(" · ")}</p></div></section>`;
+  const schemas = [{ "@context": "https://schema.org", "@type": "WebApplication", name: tool.name, applicationCategory: "BusinessApplication", operatingSystem: "Any", browserRequirements: "需要支持 JavaScript 的现代浏览器", inLanguage: "zh-CN", dateModified: buildDate, url: `${site}/${tool.slug}/`, description: tool.description, isAccessibleForFree: true, offers: { "@type": "Offer", price: "0", priceCurrency: "CNY" } }, { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "首页", item: site }, { "@type": "ListItem", position: 2, name: tool.name, item: `${site}/${tool.slug}/` }] }];
   return layout({ title: `${tool.name} - 浏览器本地处理 | 表理工具`, description: tool.description, pathName: `/${tool.slug}/`, body, toolId: tool.id, schemaData: schemas });
 }
 
@@ -191,7 +212,8 @@ function policyPage(kind) {
     licenses: { title: "开源许可", description: "表理工具内置开源组件的版本、版权和许可说明。", html: `<p>更新日期：2026 年 9 月 9 日</p><h2>JSZip 3.10.1</h2><p>Copyright © 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso。本站按 MIT License 使用，项目内保留完整许可文本。</p><h2>站点自有代码</h2><p>XLSX 基础读写由本站轻量模块实现，不含第三方表格解析库。它会把常见日期整理成可读文本，把公式保留为公式文本；数字格式、样式、宏和图表不在保留范围内。</p><p>组件名称与商标归各自权利人所有。</p>` }
   };
   const page = pages[kind];
-  return layout({ title: `${page.title} | 表理工具`, description: page.description, pathName: `/${kind}/`, body: `<section class="policy"><div class="shell content"><h1>${page.title}</h1>${page.html}</div></section>` });
+  const currentHtml = page.html.replaceAll("2026 年 9 月 9 日", chineseBuildDate);
+  return layout({ title: `${page.title} | 表理工具`, description: page.description, pathName: `/${kind}/`, body: `<section class="policy"><div class="shell content"><h1>${page.title}</h1>${currentHtml}</div></section>` });
 }
 
 async function writePage(relative, html) {
@@ -217,7 +239,7 @@ for (const kind of ["about", "privacy", "terms", "licenses"]) await writePage(pa
 await writePage("404.html", layout({ title: "页面未找到 | 表理工具", description: "你访问的页面不存在。", pathName: "/404.html", indexable: false, canonicalize: false, body: `<section class="not-found"><div><p class="eyebrow">404</p><h1>页面没有找到</h1><p>地址可能已经改变。回到首页后，可以重新选择需要的表格工具。</p><a class="button primary" href="/">返回首页</a></div></section>` }));
 
 const urls = ["/", ...tools.map((tool) => `/${tool.slug}/`), "/about/", "/privacy/", "/terms/", "/licenses/"];
-await writeFile(path.join(out, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `\n  <url><loc>${site}${url}</loc><lastmod>2026-09-09</lastmod></url>`).join("")}\n</urlset>\n`);
+await writeFile(path.join(out, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `\n  <url><loc>${site}${url}</loc><lastmod>${buildDate}</lastmod></url>`).join("")}\n</urlset>\n`);
 await writeFile(path.join(out, "robots.txt"), `User-agent: *\nAllow: /\n\nSitemap: ${site}/sitemap.xml\n`);
 await writeFile(path.join(out, ".nojekyll"), "");
 
