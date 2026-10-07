@@ -1,25 +1,42 @@
 <!doctype html>
+<!-- biaoli-build: 1.19.4 -->
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3ERPJ3X77R"></script>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="color-scheme" content="light">
+  <!-- Google Analytics loads after the main page load to reduce competition with core UI resources. -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-3ERPJ3X77R');
+    function analyticsAllowed(){
+      return navigator.globalPrivacyControl !== true && navigator.doNotTrack !== '1' && window.doNotTrack !== '1';
+    }
+    function loadAnalytics(){
+      if (!analyticsAllowed() || window.__biaoliAnalyticsLoaded) return;
+      window.__biaoliAnalyticsLoaded = true;
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=G-3ERPJ3X77R';
+      document.head.appendChild(script);
+      gtag('js', new Date());
+      gtag('config', 'G-3ERPJ3X77R');
+    }
+    window.addEventListener('load', () => {
+      if ('requestIdleCallback' in window) requestIdleCallback(loadAnalytics, { timeout: 2000 });
+      else setTimeout(loadAnalytics, 1000);
+    }, { once: true });
   </script>
   <title>关于与反馈 | 表理工具</title>
-  <meta name="description" content="了解表理工具的维护原则、测试方式、功能边界和问题反馈渠道。">
+  <meta name="description" content="了解表理工具做什么、文件如何处理、当前支持范围以及问题反馈方式。">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
   <link rel="canonical" href="https://biaoli-tools.github.io/about/">
-  
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_CN">
   <meta property="og:site_name" content="表理工具">
   <meta property="og:title" content="关于与反馈 | 表理工具">
-  <meta property="og:description" content="了解表理工具的维护原则、测试方式、功能边界和问题反馈渠道。">
+  <meta property="og:description" content="了解表理工具做什么、文件如何处理、当前支持范围以及问题反馈方式。">
   <meta property="og:url" content="https://biaoli-tools.github.io/about/">
   <meta property="og:image" content="https://biaoli-tools.github.io/assets/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -28,7 +45,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#16724a">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/styles.css?v=1.19.4">
   
 </head>
 <body>
@@ -36,8 +53,8 @@
   <header class="site-header">
     <nav class="nav" aria-label="主导航">
       <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>表理工具</a>
-      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
-      <div class="nav-links">
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav-links">☰</button>
+      <div class="nav-links" id="site-nav-links">
         <a href="/#tools">全部工具</a>
         <a href="/about/">关于与反馈</a>
         <a href="/privacy/">隐私政策</a>
@@ -45,14 +62,18 @@
       </div>
     </nav>
   </header>
-  <main id="main"><section class="policy"><div class="shell content"><h1>关于与反馈</h1><p>规则与功能最近核对：2026 年 9 月 9 日</p><h2>为什么做这个站</h2><p>表理工具专门处理办公中反复出现的小麻烦：换格式、删重复、合并月报、按部门拆表，以及比较两个版本。首版没有做成完整的在线表格编辑器，因为这些任务更适合用边界清楚的小工具解决。</p><h2>怎么检查功能</h2><p>每个工具都配有虚构样例。构建过程会检查页面链接、标题与描述，数据测试覆盖 CSV 引号和换行、去重规则、差异分类、文件名清理、CSV 安全导出，以及 XLSX 文件结构。涉及日期、公式和大文件时，页面会直接说明限制，不用“完全兼容”这类说不准的话。</p><h2>如何反馈问题</h2><p>发现结果不符合预期时，请记录浏览器版本、文件格式和复现步骤，不要提交含客户、财务或身份信息的原文件。可以前往 <a href="https://github.com/biaoli-tools/biaoli-tools.github.io/issues" rel="noopener noreferrer">GitHub Issues</a> 反馈。</p><h2>更新记录</h2><p><strong>2026-09-09：</strong>补充 XLSX 日期与公式处理、CSV 安全导出、大文件提醒和五个工具的规则示例。</p></div></section></main>
+  <noscript><div class="noscript-note" role="status">工具处理需要启用 JavaScript；页面说明和隐私信息仍可正常阅读。</div></noscript>
+  <main id="main" tabindex="-1"><section class="policy"><div class="shell content"><h1>关于与反馈</h1><h2>表理工具做什么</h2><p>表理工具是一组面向日常办公的 Excel 与 CSV 小工具，重点解决格式转换、CSV 乱码修复、重复记录清理、两列对比、多文件合并、按部门或门店拆分，以及两个版本的数据差异核对。每个页面尽量只解决一个明确任务，不把简单操作做成复杂的在线表格编辑器。</p><h2>文件在哪里处理</h2><p>表格解析、整理和导出默认在当前浏览器中完成，本站不提供文件上传接口。处理重要资料前仍建议保留原文件，并在下载后抽查关键列、行数和日期等容易出错的内容。</p><h2>当前支持范围</h2><p>目前支持 XLSX、CSV 和 TSV。旧版 XLS 需要先另存为 XLSX；每个 XLSX 默认只读取第一张工作表。宏、图表、数据透视表、复杂样式和外部链接不会完整保留，因此这里更适合整理数据，不适合复制工作簿版式。</p><h2>反馈问题</h2><p>如果处理结果不符合预期，请记录浏览器版本、文件格式、使用的工具和复现步骤。不要在公开反馈中上传客户名单、财务数据、身份证明或其他敏感原文件。可以前往 <a href="https://github.com/biaoli-tools/biaoli-tools.github.io/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 提交问题。</p></div></section></main>
   <footer class="site-footer">
     <div class="shell footer-grid">
-      <p>© <span data-year></span> 表理工具 · 文件默认只在当前浏览器中处理</p>
-      <div class="footer-links"><a href="/about/">关于与反馈</a><a href="/privacy/">隐私政策</a><a href="/terms/">使用条款</a><a href="/licenses/">开源许可</a></div>
+      <div class="footer-meta">
+        <p>© <span data-year></span> 表理工具 · 文件默认只在当前浏览器中处理</p>
+        <div class="footer-links"><a href="/about/">关于与反馈</a><a href="/privacy/">隐私政策</a><a href="/terms/">使用条款</a><a href="/licenses/">第三方许可</a></div>
+      </div>
+      
     </div>
   </footer>
-  <script type="module" src="/assets/app.js"></script>
+  <script type="module" src="/assets/app.js?v=1.19.4"></script>
   
 </body>
 </html>

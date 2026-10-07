@@ -1,3 +1,15 @@
+
+export const MAX_XLSX_EXPANDED_BYTES = 300 * 1024 * 1024;
+export const MAX_XLSX_ROWS = 1_048_576;
+export const MAX_XLSX_COLUMNS = 16_384;
+
+export function expandedZipBytes(zip) {
+  return Object.values(zip?.files || {}).reduce((sum, entry) => {
+    if (entry?.dir) return sum;
+    return sum + Math.max(0, Number(entry?._data?.uncompressedSize) || 0);
+  }, 0);
+}
+
 function xmlEscape(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char]);
 }
@@ -98,6 +110,16 @@ export async function writeXlsx(sheets) {
     usedNames.add(name.toLocaleLowerCase("zh-CN"));
     return { ...sheet, name };
   });
+  for (const sheet of normalizedSheets) {
+    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
+    if (rows.length > MAX_XLSX_ROWS) {
+      throw new Error(`工作表“${sheet.name}”有 ${rows.length.toLocaleString("zh-CN")} 行，超过 Excel 单工作表最多 ${MAX_XLSX_ROWS.toLocaleString("zh-CN")} 行。请先拆分数据或改用 CSV。`);
+    }
+    const columns = rows.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0);
+    if (columns > MAX_XLSX_COLUMNS) {
+      throw new Error(`工作表“${sheet.name}”有 ${columns.toLocaleString("zh-CN")} 列，超过 Excel 单工作表最多 ${MAX_XLSX_COLUMNS.toLocaleString("zh-CN")} 列。请减少列数后重试。`);
+    }
+  }
   const overrides = normalizedSheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
   zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${overrides}</Types>`);
   zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
@@ -118,6 +140,10 @@ export async function readXlsx(buffer, filename = "工作簿") {
   let zip;
   try { zip = await JSZip.loadAsync(buffer); }
   catch { throw new Error(`${filename} 不是有效的 XLSX 文件，可能已损坏或加密。`); }
+  const expandedBytes = expandedZipBytes(zip);
+  if (expandedBytes > MAX_XLSX_EXPANDED_BYTES) {
+    throw new Error(`${filename} 解压后的工作簿内容超过 300 MB。为避免浏览器内存不足，请先拆分文件后重试。`);
+  }
   const workbookEntry = zip.file("xl/workbook.xml");
   const relsEntry = zip.file("xl/_rels/workbook.xml.rels");
   if (!workbookEntry || !relsEntry) throw new Error(`${filename} 缺少工作簿结构。`);

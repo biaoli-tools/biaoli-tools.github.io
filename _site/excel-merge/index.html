@@ -1,25 +1,42 @@
 <!doctype html>
+<!-- biaoli-build: 1.19.4 -->
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3ERPJ3X77R"></script>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="color-scheme" content="light">
+  <!-- Google Analytics loads after the main page load to reduce competition with core UI resources. -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-3ERPJ3X77R');
+    function analyticsAllowed(){
+      return navigator.globalPrivacyControl !== true && navigator.doNotTrack !== '1' && window.doNotTrack !== '1';
+    }
+    function loadAnalytics(){
+      if (!analyticsAllowed() || window.__biaoliAnalyticsLoaded) return;
+      window.__biaoliAnalyticsLoaded = true;
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=G-3ERPJ3X77R';
+      document.head.appendChild(script);
+      gtag('js', new Date());
+      gtag('config', 'G-3ERPJ3X77R');
+    }
+    window.addEventListener('load', () => {
+      if ('requestIdleCallback' in window) requestIdleCallback(loadAnalytics, { timeout: 2000 });
+      else setTimeout(loadAnalytics, 1000);
+    }, { once: true });
   </script>
-  <title>Excel 多文件合并 - 浏览器本地处理 | 表理工具</title>
-  <meta name="description" content="批量合并 Excel 与 CSV 文件，自动对齐不同顺序的同名表头，或保留为独立工作表。">
+  <title>Excel 合并 - 多个 Excel / CSV 文件批量合并 | 表理工具</title>
+  <meta name="description" content="批量合并多个 Excel 与 CSV 文件，可按行自动对齐同名表头，或把每个文件保留为独立工作表。">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
   <link rel="canonical" href="https://biaoli-tools.github.io/excel-merge/">
-  
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_CN">
   <meta property="og:site_name" content="表理工具">
-  <meta property="og:title" content="Excel 多文件合并 - 浏览器本地处理 | 表理工具">
-  <meta property="og:description" content="批量合并 Excel 与 CSV 文件，自动对齐不同顺序的同名表头，或保留为独立工作表。">
+  <meta property="og:title" content="Excel 合并 - 多个 Excel / CSV 文件批量合并 | 表理工具">
+  <meta property="og:description" content="批量合并多个 Excel 与 CSV 文件，可按行自动对齐同名表头，或把每个文件保留为独立工作表。">
   <meta property="og:url" content="https://biaoli-tools.github.io/excel-merge/">
   <meta property="og:image" content="https://biaoli-tools.github.io/assets/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -28,16 +45,16 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#16724a">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css">
-  <script type="application/ld+json">[{"@context":"https://schema.org","@type":"WebApplication","name":"Excel 多文件合并","applicationCategory":"BusinessApplication","operatingSystem":"Any","browserRequirements":"需要支持 JavaScript 的现代浏览器","inLanguage":"zh-CN","dateModified":"2026-09-09","url":"https://biaoli-tools.github.io/excel-merge/","description":"批量合并 Excel 与 CSV 文件，自动对齐不同顺序的同名表头，或保留为独立工作表。","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}},{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://biaoli-tools.github.io"},{"@type":"ListItem","position":2,"name":"Excel 多文件合并","item":"https://biaoli-tools.github.io/excel-merge/"}]}]</script>
+  <link rel="stylesheet" href="/assets/styles.css?v=1.19.4">
+  <script type="application/ld+json">[{"@context":"https://schema.org","@type":"WebApplication","name":"Excel 多文件合并","applicationCategory":"BusinessApplication","operatingSystem":"Any","browserRequirements":"需要支持 JavaScript 的现代浏览器","inLanguage":"zh-CN","dateModified":"2026-10-07","url":"https://biaoli-tools.github.io/excel-merge/","description":"批量合并多个 Excel 与 CSV 文件，可按行自动对齐同名表头，或把每个文件保留为独立工作表。","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}},{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://biaoli-tools.github.io"},{"@type":"ListItem","position":2,"name":"Excel 多文件合并","item":"https://biaoli-tools.github.io/excel-merge/"}]}]</script>
 </head>
 <body data-tool="merge">
   <a class="skip-link" href="#main">跳到主要内容</a>
   <header class="site-header">
     <nav class="nav" aria-label="主导航">
       <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>表理工具</a>
-      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
-      <div class="nav-links">
+      <button class="nav-toggle" type="button" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav-links">☰</button>
+      <div class="nav-links" id="site-nav-links">
         <a href="/#tools">全部工具</a>
         <a href="/about/">关于与反馈</a>
         <a href="/privacy/">隐私政策</a>
@@ -45,16 +62,20 @@
       </div>
     </nav>
   </header>
-  <main id="main"><section class="tool-header"><div class="shell"><div class="breadcrumbs"><a href="/">首页</a> / Excel 多文件合并</div><p class="eyebrow">免费使用 · 浏览器本地处理</p><h1>Excel 多文件合并</h1><p class="lead">批量合并 Excel 与 CSV 文件，自动对齐不同顺序的同名表头，或保留为独立工作表。 多份文件只在当前页面中合并，本站不会接收表格内容。</p></div></section>
-  <section class="workspace"><div class="shell workspace-grid"><div class="workbench"><div class="step"><div class="step-title"><b>1</b><h2>选择文件与规则</h2></div><label class="dropzone" for="files"><span><strong>选择至少两个文件</strong><small>支持 XLSX、CSV、TSV；单个文件不超过 50 MB</small></span><input id="files" type="file" accept=".xlsx,.csv,.tsv" multiple></label><div id="file-list" class="file-list" aria-live="polite"></div><div class="field-grid control-spacing"><div class="field"><label for="encoding">CSV / TSV 文字编码</label><select id="encoding"><option value="utf-8">UTF-8</option><option value="gb18030">GBK / GB18030</option><option value="big5">Big5</option></select></div><div class="field"><label for="merge-mode">合并方式</label><select id="merge-mode"><option value="rows">按行合并，同名表头自动对齐</option><option value="sheets">每个文件保留为独立工作表</option></select></div></div><div id="status" class="status" role="status" aria-live="polite"></div><div id="progress" class="progress" aria-hidden="true"><span></span></div></div><div class="step"><div class="step-title"><b>2</b><h2>开始处理</h2></div><div class="actions"><button id="run" class="button primary" type="button">处理并生成预览</button><a class="button" href="/samples/merge-a.csv" download>下载简单样例</a></div></div><div id="result" class="step result"><div class="step-title"><b>3</b><h2>检查并下载</h2></div><div id="summary" class="result-summary"></div><div id="preview" class="table-wrap"></div><div class="actions result-actions"><button id="download" class="button primary" type="button">下载处理结果</button></div></div></div><aside class="side-note"><h2>合并前值得检查</h2><ul><li>所有输入都把第一行当作表头，文件中不要夹带标题说明行。</li><li>一次最多选择 50 个文件，累计不能超过 200 MB。</li><li>原有颜色、列宽、图表和宏不会进入新工作簿。</li></ul><div class="notice"><strong>请保留原文件</strong><p>“销售额”和“销售金额”会被视为两列，工具不会根据含义自动合并。先统一表头，通常比合并后再清理省事。</p></div></aside></div></section><section class="promo-band" aria-label="合作推广"><div class="shell"><a class="promo-banner" href="https://huyuejsq.co/" target="_blank" rel="sponsored noopener noreferrer"><span class="promo-label">推广</span><span class="promo-copy"><strong>虎跃加速</strong><span>多平台网络连接工具，查看产品介绍与下载方式</span></span><span class="promo-action">访问官网 <span aria-hidden="true">↗</span></span></a></div></section>
-  <section class="section white"><div class="shell content"><h2>列顺序不同，不代表不能合并</h2><p>月报 A 的顺序可能是“门店、订单号、金额”，月报 B 却是“订单号、金额、门店”。按行合并时，工具看的是表头名称，不是列位置。某个文件没有的列会留空，多出来的列则会追加到结果右侧。</p><div class="example-block"><h2>表头如何自动对齐</h2><div class="table-wrap"><table><caption>示例：两份来源不同的表会对齐为同一列序。</caption><thead><tr><th>文件</th><th>原表头顺序</th><th>合并后</th></tr></thead><tbody><tr><td>华东.csv</td><td>编号、部门、金额</td><td>编号、部门、金额</td></tr><tr><td>华南.csv</td><td>部门、编号、备注</td><td>编号、部门、金额、备注</td></tr></tbody></table></div></div><h2>两种合并方式别选反</h2><ul><li>按行合并：所有数据进入一张表，同名表头自动对齐。</li><li>按工作表合并：每个文件成为一个工作表，只读取每个 XLSX 的第一张表。</li><li>文件列表中的上下顺序就是合并顺序，可以在处理前调整。</li><li>空表头和重复表头会生成唯一列名，避免数据静默覆盖。</li></ul><h2>先看汇总数量，再查缺失列</h2><p>结果区会显示文件数、总数据行数和统一后的列数。若列数比预期多，通常是“客户名称”和“客户名”这类表头写法不一致，需要先统一命名再合并。</p><h2>合并前的快速检查</h2><ol><li>一次选择至少两个文件，确认列表顺序。</li><li>根据用途选择按行合并或按工作表保留。</li><li>生成预览，检查总行数与新增列，再下载工作簿。</li></ol><h2>合并文件常见问题</h2><div class="faq"><details><summary>列的前后顺序不同可以合并吗？</summary><p>可以，只要表头文字一致。工具会把同名列放到同一位置。</p></details><details><summary>为什么合并后多出很多空列？</summary><p>多数情况是表头存在空格、简称或不同写法。请检查新增列名称，必要时先在源文件中统一。</p></details><details><summary>一个工作簿里的所有工作表都会合并吗？</summary><p>不会。当前版本每个 XLSX 只读取第一张工作表；需要处理其他工作表时，请先单独另存。</p></details></div><h2>合并前后常用工具</h2><p><a href="/csv-excel-converter/">CSV / Excel 转换</a> · <a href="/excel-deduplicate/">Excel / CSV 去重</a> · <a href="/excel-split-by-column/">Excel 按列拆分</a></p></div></section></main>
+  <noscript><div class="noscript-note" role="status">工具处理需要启用 JavaScript；页面说明和隐私信息仍可正常阅读。</div></noscript>
+  <main id="main" tabindex="-1"><section class="tool-header"><div class="shell"><div class="breadcrumbs"><a href="/">首页</a> / Excel 多文件合并</div><p class="eyebrow">免费使用 · 浏览器本地处理</p><h1>Excel 多文件合并</h1><p class="lead">批量合并多个 Excel 与 CSV 文件，可按行自动对齐同名表头，或把每个文件保留为独立工作表。 多份文件只在当前页面中合并，本站不会接收表格内容。</p></div></section>
+  <section class="workspace"><div class="shell workspace-grid"><div class="workbench"><div class="step"><div class="step-title"><b>1</b><h2>选择文件与规则</h2></div><label class="dropzone" for="files"><span><strong>选择至少两个文件</strong><small id="files-help">点击选择或直接拖入；支持 XLSX、CSV、TSV；单个文件不超过 50 MB</small></span><input id="files" type="file" accept=".xlsx,.csv,.tsv" aria-describedby="files-help" multiple></label><div id="file-list" class="file-list" aria-live="polite"></div><div class="field-grid control-spacing"><div class="field"><label for="encoding">CSV / TSV 文字编码</label><select id="encoding"><option value="utf-8">UTF-8</option><option value="gb18030">GBK / GB18030</option><option value="big5">Big5</option></select></div><div class="field"><label for="merge-mode">合并方式</label><select id="merge-mode"><option value="rows">按行合并，同名表头自动对齐</option><option value="sheets">每个文件保留为独立工作表</option></select></div></div><div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div><div id="progress" class="progress" role="progressbar" aria-label="处理进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div></div><div class="step"><div class="step-title"><b>2</b><h2>开始处理</h2></div><div class="actions"><button id="run" class="button primary" type="button" aria-describedby="run-help" disabled>合并并预览</button><a class="button" href="/samples/merge-a.csv" download rel="nofollow">下载简单样例</a></div><p id="run-help" class="field-help">文件准备完成且当前规则有效后，此按钮会自动启用。</p></div><div id="result" class="step result" role="region" aria-labelledby="result-title" tabindex="-1"><div class="step-title"><b>3</b><h2 id="result-title">检查并下载</h2></div><div id="summary" class="result-summary"></div><p class="preview-note"><strong id="preview-label">当前预览</strong> · 最多显示前 12 行、前 12 列；下载结果仍包含本次处理的完整数据。宽表可左右滚动。</p><div id="preview" class="table-wrap" tabindex="0" aria-label="处理结果预览，可横向滚动"></div><div class="actions result-actions"><button id="download" class="button primary" type="button" disabled>下载处理结果</button><button id="reset-tool" class="button" type="button">处理另一份文件</button></div></div></div><aside class="side-note"><h2>合并前值得检查</h2><ul><li>所有输入都把第一行当作表头，文件中不要夹带标题说明行。</li><li>一次最多选择 50 个文件，累计不能超过 200 MB。</li><li>原有颜色、列宽、图表和宏不会进入新工作簿。</li></ul><div class="notice"><strong>请保留原文件</strong><p>“销售额”和“销售金额”会被视为两列，工具不会根据含义自动合并。先统一表头，通常比合并后再清理省事。</p></div></aside></div></section><section class="promo-band" aria-label="商业合作推广"><div class="shell"><a class="promo-banner" href="https://huyuejsq.co/" target="_blank" rel="sponsored noopener noreferrer" data-sponsor="huyue" data-sponsor-placement="tool_primary" aria-label="广告：虎跃加速器，访问官网查看套餐与客户端下载"><span class="promo-brand"><span class="promo-logo-wrap"><img class="promo-logo" src="/assets/huyue-logo.png?v=1.19.4" alt="" width="88" height="88" decoding="async"></span><span class="promo-brand-text"><span class="promo-label">广告 · 商业合作</span><strong>虎跃加速器</strong><small>HuYue VPN</small></span></span><span class="promo-copy"><span class="promo-kicker">影音 · 游戏 · 直播</span><strong>多平台网络连接服务</strong><span>查看当前套餐、线路说明与客户端下载信息。</span><span class="promo-pills" aria-hidden="true"><i>多平台客户端</i><i>套餐信息</i><i>线路说明</i></span></span><span class="promo-action"><small>推广链接</small><b>查看套餐详情 <span aria-hidden="true">↗</span></b></span></a></div></section>
+  <section class="section white"><div class="shell content"><div class="answer-block"><strong>多个 Excel 的列顺序不同还能合并吗？</strong><p>可以。按行合并时会按表头名称对齐，而不是按列位置硬拼；但“客户名”和“客户名称”会被视为不同字段，合并前最好先统一列名。</p></div><h2>列顺序不同，不代表不能合并</h2><p>月报 A 的顺序可能是“门店、订单号、金额”，月报 B 却是“订单号、金额、门店”。按行合并时，工具看的是表头名称，不是列位置。某个文件没有的列会留空，多出来的列则会追加到结果右侧。</p><div class="example-block"><h2>表头如何自动对齐</h2><div class="table-wrap" tabindex="0" aria-label="表格示例，可横向滚动"><table><caption>示例：两份来源不同的表会对齐为同一列序。</caption><thead><tr><th scope="col">文件</th><th scope="col">原表头顺序</th><th scope="col">合并后</th></tr></thead><tbody><tr><td>华东.csv</td><td>编号、部门、金额</td><td>编号、部门、金额</td></tr><tr><td>华南.csv</td><td>部门、编号、备注</td><td>编号、部门、金额、备注</td></tr></tbody></table></div></div><h2>两种合并方式别选反</h2><ul><li>按行合并：所有数据进入一张表，同名表头自动对齐。</li><li>按工作表合并：每个文件成为一个工作表，只读取每个 XLSX 的第一张表。</li><li>文件列表中的上下顺序就是合并顺序，可以在处理前调整。</li><li>空表头和重复表头会生成唯一列名，避免数据静默覆盖。</li></ul><h2>先看汇总数量，再查缺失列</h2><p>结果区会显示文件数、总数据行数和统一后的列数。若列数比预期多，通常是“客户名称”和“客户名”这类表头写法不一致，需要先统一命名再合并。</p><h2>合并前的快速检查</h2><ol><li>一次选择至少两个文件，确认列表顺序。</li><li>根据用途选择按行合并或按工作表保留。</li><li>生成预览，检查总行数与新增列，再下载工作簿。</li></ol><h2>合并后突然多出列，先检查表头写法</h2><p>这个工具只按表头文字对齐，不会把“客户名称”“客户名”或带隐藏空格的列自动认成同一个字段。合并前先统一常用列名，通常能减少结果中的空列，也能避免同一类数据被拆到两列。</p><aside class="sponsor-card-wrap" aria-label="赞助合作"><a class="sponsor-card" href="https://huyuejsq.co/" target="_blank" rel="sponsored noopener noreferrer" data-sponsor="huyue" data-sponsor-placement="tool_secondary" aria-label="广告：虎跃加速器，查看套餐与客户端下载"><span class="sponsor-card-brand"><img src="/assets/huyue-logo.png?v=1.19.4" alt="" width="46" height="46" loading="lazy" decoding="async"><span><small>广告 · 合作伙伴</small><strong>虎跃加速器</strong></span></span><span class="sponsor-card-copy">多平台客户端、套餐与线路信息</span><b>查看详情 <span aria-hidden="true">→</span></b></a></aside><h2>合并前后常用工具</h2><ul class="related-context"><li><a href="/excel-compare/">合并前要核对新版月报和旧版差异，可先用 Excel 表格差异对比。</a></li><li><a href="/excel-deduplicate/">合并后担心重复记录，可继续按业务关键列去重。</a></li></ul></div></section></main>
   <footer class="site-footer">
     <div class="shell footer-grid">
-      <p>© <span data-year></span> 表理工具 · 文件默认只在当前浏览器中处理</p>
-      <div class="footer-links"><a href="/about/">关于与反馈</a><a href="/privacy/">隐私政策</a><a href="/terms/">使用条款</a><a href="/licenses/">开源许可</a></div>
+      <div class="footer-meta">
+        <p>© <span data-year></span> 表理工具 · 文件默认只在当前浏览器中处理</p>
+        <div class="footer-links"><a href="/about/">关于与反馈</a><a href="/privacy/">隐私政策</a><a href="/terms/">使用条款</a><a href="/licenses/">第三方许可</a></div>
+      </div>
+      
     </div>
   </footer>
-  <script type="module" src="/assets/app.js"></script>
-  <script src="/assets/vendor/jszip.min.js"></script><script type="module" src="/assets/tools.js"></script>
+  <script type="module" src="/assets/app.js?v=1.19.4"></script>
+  <script type="module" src="/assets/tools.js?v=1.19.4"></script>
 </body>
 </html>

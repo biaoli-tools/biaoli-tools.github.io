@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareRows, deduplicateRows, detectDelimiter, largeFileWarning, parseDelimited, protectSpreadsheetFormula, sanitizeFileName, toDelimited } from "../src/js/data.js";
+import { compareColumns, compareRows, deduplicateRows, detectDelimiter, largeFileWarning, parseDelimited, protectSpreadsheetFormula, sanitizeFileName, toDelimited } from "../src/js/data.js";
 
 test("quoted CSV round-trips", () => {
   const rows = [["姓名", "备注"], ["小林", "含,逗号"], ["小周", "两\n行"]];
@@ -32,11 +32,32 @@ test("dedupe supports trim, case folding and keep-last", () => {
   assert.equal(result.duplicates.length, 2);
 });
 
+
+test("dedupe can keep latest or earliest by an explicit date column", () => {
+  const rows = [["客户编号", "状态", "更新时间"], ["C018", "待确认", "2026-09-01"], ["C018", "已完成", "2026-09-08"], ["C019", "首次", "2026/09/05 10:30:00"], ["C019", "更新", "2026/09/05 11:30:00"]];
+  const latest = deduplicateRows(rows, [0], { keep: "latest", dateIndex: 2 });
+  const earliest = deduplicateRows(rows, [0], { keep: "earliest", dateIndex: 2 });
+  assert.deepEqual(latest.kept.slice(1).map((row) => row[1]), ["已完成", "更新"]);
+  assert.deepEqual(earliest.kept.slice(1).map((row) => row[1]), ["待确认", "首次"]);
+});
+
+test("date-based dedupe rejects ambiguous or invalid dates in duplicate groups", () => {
+  const rows = [["客户编号", "更新时间"], ["C018", "2026-09-01"], ["C018", "09/08/2026"]];
+  assert.throws(() => deduplicateRows(rows, [0], { keep: "latest", dateIndex: 1 }), /数据行 3 无法识别/);
+});
 test("composite keys cannot collide with separator-like cell content", () => {
   const rows = [["甲", "乙"], ["a\u001fb", "c"], ["a", "b\u001fc"]];
   const result = deduplicateRows(rows, [0, 1]);
   assert.equal(result.kept.length, 3);
   assert.equal(result.duplicates.length, 1);
+});
+
+test("two-column compare separates common and one-sided values with counts", () => {
+  const rows = [["本月", "上月"], [" A1 ", "A2"], ["a2", "A1"], ["A2", ""], ["", "A3"]];
+  const result = compareColumns(rows, 0, 1, { trim: true, ignoreCase: true, ignoreEmpty: true });
+  assert.deepEqual(result.common, [["值", "第一列出现次数", "第二列出现次数"], ["A1", 1, 1], ["a2", 2, 1]]);
+  assert.deepEqual(result.onlyLeft, [["值", "出现次数"]]);
+  assert.deepEqual(result.onlyRight, [["值", "出现次数"], ["A3", 1]]);
 });
 
 test("compare separates added, removed, changed and unchanged", () => {
@@ -47,6 +68,30 @@ test("compare separates added, removed, changed and unchanged", () => {
   assert.equal(result.removed.length, 1);
   assert.equal(result.changed.length, 1);
   assert.equal(result.unchanged.length, 1);
+});
+
+test("compare exposes field-level old and new values for changed records", () => {
+  const left = [["ID", "状态", "金额"], ["A01", "待处理", "100"], ["A02", "完成", "80"]];
+  const right = [["ID", "状态", "金额"], ["A01", "完成", "120"], ["A02", "完成", "80"]];
+  const result = compareRows(left, right, { left: [0], right: [0] });
+  assert.deepEqual(result.changeDetails, [
+    ["A01", "状态", "待处理", "完成"],
+    ["A01", "金额", "100", "120"]
+  ]);
+});
+
+
+test("compare rejects empty key values instead of matching blank records", () => {
+  const left = [["ID", "姓名"], ["", "Alice"]];
+  const right = [["ID", "姓名"], ["", "Bob"]];
+  assert.throws(() => compareRows(left, right, { left: [0], right: [0] }), /旧版关键列“ID”的数据行 2 为空/);
+});
+
+test("two-column compare preserves visible whitespace when trim is disabled", () => {
+  const rows = [["第一列", "第二列"], [" X ", "X"]];
+  const result = compareColumns(rows, 0, 1, { trim: false, ignoreCase: false, ignoreEmpty: true });
+  assert.deepEqual(result.onlyLeft, [["值", "出现次数"], [" X ", 1]]);
+  assert.deepEqual(result.onlyRight, [["值", "出现次数"], ["X", 1]]);
 });
 
 test("compare rejects duplicate keys instead of overwriting rows", () => {

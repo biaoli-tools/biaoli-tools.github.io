@@ -24,6 +24,23 @@ export function makeKey(row, indexes, options = {}) {
   return JSON.stringify(indexes.map((index) => normalizeCell(row[index], options)));
 }
 
+function parseSortableDate(value) {
+  const text = String(value ?? "").trim();
+  const match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!match) return null;
+  const [, yearText, monthText, dayText, hourText = "0", minuteText = "0", secondText = "0"] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const time = Date.UTC(year, month - 1, day, hour, minute, second);
+  const date = new Date(time);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day || date.getUTCHours() !== hour || date.getUTCMinutes() !== minute || date.getUTCSeconds() !== second) return null;
+  return time;
+}
+
 export function deduplicateRows(rows, indexes, options = {}) {
   if (!rows.length) return { kept: [], duplicates: [] };
   const header = rows[0];
@@ -35,12 +52,28 @@ export function deduplicateRows(rows, indexes, options = {}) {
     if (!occurrences.has(key)) occurrences.set(key, []);
     occurrences.get(key).push(index);
   });
-  const keepLast = options.keep === "last";
+  const dateMode = options.keep === "latest" || options.keep === "earliest";
+  const dateIndex = Number(options.dateIndex);
+  if (dateMode && (!Number.isInteger(dateIndex) || dateIndex < 0 || dateIndex >= header.length)) throw new Error("请选择有效的日期列。");
+  const keepers = new Map();
+  for (const [key, positions] of occurrences) {
+    let keeper = options.keep === "last" ? positions.at(-1) : positions[0];
+    if (dateMode && positions.length > 1) {
+      let best = null;
+      for (const position of positions) {
+        const timestamp = parseSortableDate(body[position][dateIndex]);
+        if (timestamp == null) throw new Error(`日期列“${header[dateIndex]}”的数据行 ${position + 2} 无法识别，请使用 YYYY-MM-DD、YYYY/MM/DD，可带 HH:mm:ss。`);
+        if (!best || (options.keep === "latest" ? timestamp > best.timestamp || (timestamp === best.timestamp && position > best.position) : timestamp < best.timestamp || (timestamp === best.timestamp && position < best.position))) best = { position, timestamp };
+      }
+      keeper = best.position;
+    }
+    keepers.set(key, keeper);
+  }
   const kept = [header];
   const duplicates = [[...header, "重复原因"]];
   body.forEach((row, index) => {
-    const positions = occurrences.get(makeKey(row, selected, options));
-    const keeper = keepLast ? positions.at(-1) : positions[0];
+    const key = makeKey(row, selected, options);
+    const keeper = keepers.get(key);
     if (index === keeper) kept.push(row);
     else duplicates.push([...row, `与数据行 ${keeper + 2} 重复`]);
   });
@@ -52,6 +85,19 @@ export function compareRows(leftRows, rightRows, keyIndexes, options = {}) {
   const rightHeader = rightRows[0] || [];
   const headers = [...new Set([...leftHeader, ...rightHeader])];
   const align = (row, sourceHeader) => headers.map((name) => row[sourceHeader.indexOf(name)] ?? "");
+  const emptyKeySummary = (rows, indexes, label) => {
+    for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+      for (const index of indexes) {
+        if (String(rows[rowIndex]?.[index] ?? "").trim() === "") {
+          const header = rows[0]?.[index] || `第 ${index + 1} 列`;
+          return `${label}关键列“${header}”的数据行 ${rowIndex + 1} 为空。关键列必须能识别每条记录，请先补全或删除空值后再比较。`;
+        }
+      }
+    }
+    return "";
+  };
+  const emptyKeyError = emptyKeySummary(leftRows, keyIndexes.left, "旧版") || emptyKeySummary(rightRows, keyIndexes.right, "新版");
+  if (emptyKeyError) throw new Error(emptyKeyError);
   const duplicateSummary = (rows, indexes, label) => {
     const positions = new Map();
     rows.slice(1).forEach((row, index) => {
@@ -69,7 +115,8 @@ export function compareRows(leftRows, rightRows, keyIndexes, options = {}) {
   const leftMap = new Map(leftRows.slice(1).map((row) => [makeKey(row, keyIndexes.left, options), align(row, leftHeader)]));
   const rightMap = new Map(rightRows.slice(1).map((row) => [makeKey(row, keyIndexes.right, options), align(row, rightHeader)]));
   const keys = new Set([...leftMap.keys(), ...rightMap.keys()]);
-  const result = { headers, added: [], removed: [], changed: [], unchanged: [] };
+  const keyHeaders = keyIndexes.left.map((index) => leftHeader[index]).filter(Boolean);
+  const result = { headers, added: [], removed: [], changed: [], changeDetails: [], unchanged: [] };
   keys.forEach((key) => {
     const before = leftMap.get(key);
     const after = rightMap.get(key);
@@ -77,11 +124,48 @@ export function compareRows(leftRows, rightRows, keyIndexes, options = {}) {
     else if (!after) result.removed.push(before);
     else {
       const changedColumns = headers.filter((_, index) => normalizeCell(before[index], options) !== normalizeCell(after[index], options));
-      if (changedColumns.length) result.changed.push([...after, changedColumns.join("、")]);
-      else result.unchanged.push(after);
+      if (changedColumns.length) {
+        result.changed.push([...after, changedColumns.join("、")]);
+        const keyValue = keyHeaders
+          .map((header) => before[headers.indexOf(header)] ?? after[headers.indexOf(header)] ?? "")
+          .join(" | ");
+        changedColumns.forEach((column) => {
+          const index = headers.indexOf(column);
+          result.changeDetails.push([keyValue, column, before[index] ?? "", after[index] ?? ""]);
+        });
+      } else result.unchanged.push(after);
     }
   });
   return result;
+}
+
+export function compareColumns(rows, leftIndex, rightIndex, options = {}) {
+  const leftCounts = new Map();
+  const rightCounts = new Map();
+  const collect = (index, target) => {
+    for (const row of rows.slice(1)) {
+      const raw = row[index] ?? "";
+      const key = normalizeCell(raw, options);
+      if (options.ignoreEmpty && key === "") continue;
+      const displayValue = options.trim ? String(raw ?? "").trim() : String(raw ?? "");
+      if (!target.has(key)) target.set(key, { value: displayValue, count: 0 });
+      target.get(key).count += 1;
+    }
+  };
+  collect(leftIndex, leftCounts);
+  collect(rightIndex, rightCounts);
+  const keys = new Set([...leftCounts.keys(), ...rightCounts.keys()]);
+  const common = [["值", "第一列出现次数", "第二列出现次数"]];
+  const onlyLeft = [["值", "出现次数"]];
+  const onlyRight = [["值", "出现次数"]];
+  for (const key of keys) {
+    const left = leftCounts.get(key);
+    const right = rightCounts.get(key);
+    if (left && right) common.push([left.value || right.value, left.count, right.count]);
+    else if (left) onlyLeft.push([left.value, left.count]);
+    else if (right) onlyRight.push([right.value, right.count]);
+  }
+  return { common, onlyLeft, onlyRight };
 }
 
 export function sanitizeFileName(value, fallback = "未命名") {
