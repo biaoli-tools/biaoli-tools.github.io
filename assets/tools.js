@@ -1,5 +1,5 @@
-import { LIMITS, compareColumns, compareRows, deduplicateRows, largeFileWarning, parseDelimited, sanitizeFileName, toDelimited } from "./data.js?v=1.19.1";
-import { readXlsx, writeXlsx } from "./xlsx-lite.js?v=1.19.1";
+import { LIMITS, compareColumns, compareRows, deduplicateRows, largeFileWarning, parseDelimited, sanitizeFileName, toDelimited } from "./data.js?v=1.19.2";
+import { readXlsx, writeXlsx } from "./xlsx-lite.js?v=1.19.2";
 
 const tool = document.body.dataset.tool;
 const state = { files: [], tables: [], result: null, running: false };
@@ -23,7 +23,7 @@ function loadJsZip() {
       script.remove();
       reject(new Error("ZIP 组件加载超时，请刷新页面重试。"));
     }), 10000);
-    script.src = "/assets/vendor/jszip.min.js?v=1.19.1";
+    script.src = "/assets/vendor/jszip.min.js?v=1.19.2";
     script.async = true;
     script.onload = () => finish(() => window.JSZip ? resolve(window.JSZip) : reject(new Error("ZIP 组件加载失败，请刷新页面重试。")));
     script.onerror = () => finish(() => {
